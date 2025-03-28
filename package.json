@@ -1,0 +1,35 @@
+{
+  "name": "js-express-login--mongodb",
+  "version": "1.0.0",
+  "description": "node.js Express + MongoDB: login registration with mongoose",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "node.js",
+    "express",
+    "jwt",
+    "login",
+    "registration",
+    "authentication",
+    "authorization",
+    "mongodb",
+    "mongoose"
+  ],
+  "author": "fares",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-session": "^2.1.0",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.13.0",
+    "nodemailer": "^6.10.0",
+    "uuid": "^11.1.0",
+    "xml2js": "^0.6.2"
+  }
+}
