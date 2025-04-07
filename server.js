@@ -2,11 +2,38 @@ const express = require("express");
 const cors = require("cors");
 const cookieSession = require("cookie-session");
 const dbConfig = require("./app/config/db.config.js");
+const passport = require("passport");
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+require("./app/config/passport"); // Load Passport config
+require("dotenv").config();
 
 const app = express();
+
+// Security headers middleware
+app.use(helmet());
+
+// Rate limiting for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 login attempts per windowMs
+  message: {
+    message: "Too many login attempts, please try again after 15 minutes",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 var corsOptions = {
-  origin: "http://localhost:8081",
+  origin: process.env.CLIENT_URL || "http://localhost:4200",
+  credentials: true,
+  allowHeaders: [
+    "Origin, Content-Type, Accept, Authorization, X-Requested-With",
+    "Access-Control-Allow-Origin",
+  ],
 };
+
+app.use(cors(corsOptions));
 
 // parse requests of content-type - application/json
 app.use(express.json());
@@ -14,16 +41,25 @@ app.use(express.json());
 // parse requests of content-type - application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
 
+// Cookie session middleware
 app.use(
   cookieSession({
     name: "fares-session",
-    keys: ["COOKIE_SECRET"],
+    keys: [process.env.SESSION_SECRET || "COOKIE_SECRET"],
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: "strict",
   })
 );
 
+// Initialize Passport
+app.use(passport.initialize());
+
 const db = require("./app/models");
 const Role = db.role;
+
+app.options("*", cors(corsOptions)); // enable pre-flight request for all routes
 
 db.mongoose
   .connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`)
@@ -44,6 +80,11 @@ app.get("/", (req, res) => {
 require("./app/routes/auth.routes")(app);
 require("./app/routes/user.routes")(app);
 require("./app/routes/password.routes")(app);
+require("./app/routes/profile.routes")(app);
+
+// Error handling middleware
+const errorHandler = require("./app/middlewares/errorHandler");
+app.use(errorHandler);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 8080;

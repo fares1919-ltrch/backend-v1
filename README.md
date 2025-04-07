@@ -82,9 +82,71 @@
 
 ---
 
+### 4. Refresh Token
+
+**Method:** POST
+
+**URL:** `http://localhost:8080/api/auth/refreshtoken`
+
+**Headers:**
+
+- `Content-Type: application/json`
+
+**Request Body (JSON):**
+
+```json
+{
+  "refreshToken": "string"
+}
+```
+
+**Description:** Refreshes an expired access token using a refresh token.
+
+---
+
+### 5. Google OAuth Authentication
+
+**Method:** GET
+
+**URL:** `http://localhost:8080/api/auth/google`
+
+**Description:** Initiates Google OAuth authentication flow.
+
+---
+
+### 6. Google OAuth Callback
+
+**Method:** GET
+
+**URL:** `http://localhost:8080/api/auth/google/callback`
+
+**Description:** Callback URL for Google OAuth authentication.
+
+---
+
+### 7. GitHub OAuth Authentication
+
+**Method:** GET
+
+**URL:** `http://localhost:8080/api/auth/github`
+
+**Description:** Initiates GitHub OAuth authentication flow.
+
+---
+
+### 8. GitHub OAuth Callback
+
+**Method:** GET
+
+**URL:** `http://localhost:8080/api/auth/github/callback`
+
+**Description:** Callback URL for GitHub OAuth authentication.
+
+---
+
 ## Public and Protected Content Endpoints
 
-### 4. Public Content
+### 9. Public Content
 
 **Method:** GET
 
@@ -98,7 +160,7 @@
 
 ---
 
-### 5. User Board
+### 10. User Board
 
 **Method:** GET
 
@@ -114,7 +176,7 @@
 
 ---
 
-### 6. Manager Board
+### 11. Manager Board
 
 **Method:** GET
 
@@ -130,7 +192,7 @@
 
 ---
 
-### 7. Officer Board
+### 12. Officer Board
 
 **Method:** GET
 
@@ -146,7 +208,7 @@
 
 ---
 
-### 8. Welcome Message
+### 13. Welcome Message
 
 **Method:** GET
 
@@ -160,68 +222,203 @@
 
 ---
 
+## Password Management Endpoints
+
+### 14. Forgot Password
+
+**Method:** POST
+
+**URL:** `http://localhost:8080/api/password/forgot`
+
+**Headers:**
+
+- `Content-Type: application/json`
+
+**Request Body (JSON):**
+
+```json
+{
+  "email": "string"
+}
+```
+
+**Description:** Sends a password reset email to the user.
+
+---
+
+### 15. Reset Password
+
+**Method:** POST
+
+**URL:** `http://localhost:8080/api/password/reset`
+
+**Headers:**
+
+- `Content-Type: application/json`
+
+**Request Body (JSON):**
+
+```json
+{
+  "token": "string",
+  "password": "string"
+}
+```
+
+**Description:** Resets a user's password using a reset token.
+
+---
+
+### 16. Change Password
+
+**Method:** POST
+
+**URL:** `http://localhost:8080/api/password/change`
+
+**Headers:**
+
+- `Content-Type: application/json`
+- `Authorization: Bearer <token>`
+
+**Request Body (JSON):**
+
+```json
+{
+  "currentPassword": "string",
+  "newPassword": "string"
+}
+```
+
+**Description:** Changes a user's password when logged in.
+
+---
+
+## Profile Management Endpoints
+
+### 17. Get User Profile
+
+**Method:** GET
+
+**URL:** `http://localhost:8080/api/profile`
+
+**Headers:**
+
+- `Authorization: Bearer <token>`
+
+**Request Body:** None
+
+**Description:** Retrieves the authenticated user's profile information.
+
+---
+
+### 18. Update User Profile
+
+**Method:** PUT
+
+**URL:** `http://localhost:8080/api/profile`
+
+**Headers:**
+
+- `Content-Type: application/json`
+- `Authorization: Bearer <token>`
+
+**Request Body (JSON):**
+
+```json
+{
+  "firstName": "string",
+  "lastName": "string",
+  "address": "string",
+  "city": "string",
+  "country": "string",
+  "postalCode": "string",
+  "aboutMe": "string",
+  "work": "string",
+  "workplace": "string",
+  "photo": "string"
+}
+```
+
+**Description:** Updates the authenticated user's profile information.
+
+---
+
+### 19. Delete User Account
+
+**Method:** DELETE
+
+**URL:** `http://localhost:8080/api/profile`
+
+**Headers:**
+
+- `Authorization: Bearer <token>`
+
+**Request Body:** None
+
+**Description:** Deletes the authenticated user's account.
+
+---
+
+### 20. Link OAuth Account
+
+**Method:** POST
+
+**URL:** `http://localhost:8080/api/profile/link-oauth`
+
+**Headers:**
+
+- `Content-Type: application/json`
+- `Authorization: Bearer <token>`
+
+**Request Body (JSON):**
+
+```json
+{
+  "provider": "string",
+  "providerId": "string"
+}
+```
+
+**Description:** Links an OAuth account to the user's profile.
+
+---
+
+### 21. Get Active Sessions
+
+**Method:** GET
+
+**URL:** `http://localhost:8080/api/profile/sessions`
+
+**Headers:**
+
+- `Authorization: Bearer <token>`
+
+**Request Body:** None
+
+**Description:** Retrieves the authenticated user's active sessions.
+
+---
+
+### 22. Revoke Session
+
+**Method:** DELETE
+
+**URL:** `http://localhost:8080/api/profile/sessions/:sessionToken`
+
+**Headers:**
+
+- `Authorization: Bearer <token>`
+
+**Request Body:** None
+
+**Description:** Revokes a specific session for the authenticated user.
+
+---
+
 ## Notes:
 
 - Replace `<token>` in the `Authorization` header with the actual JWT token received after logging in.
 - Ensure the `Content-Type` header is set to `application/json` for endpoints that require a request body.
 - Unauthorized access to protected endpoints will result in a `401 Unauthorized` response.
-
-### 9. Refresh Token
-
-- **Method:** `POST`
-- **URL:** `http://localhost:8080/api/auth/refreshtoken`
-- **Headers:**
-  - `Content-Type: application/json`
-- **Request Body:**
-  ```json
-  { "refreshToken": "string" }
-  ```
-- **Success Response:**
-  ```json
-  { "accessToken": "string", "refreshToken": "string" }
-  ```
-
-## Password Management Endpoints
-
-### 10. Forgot Password
-
-- **Method:** `POST`
-- **URL:** `http://localhost:8080/api/password/forgot`
-- **Headers:**
-  - `Content-Type: application/json`
-- **Request Body:**
-  ```json
-  { "email": "string" }
-  ```
-- **Success Response:**
-  - Status Code: `200 OK`
-  - Body: `{ "message": "Password reset email sent!" }`
-
-### 11. Reset Password
-
-- **Method:** `POST`
-- **URL:** `http://localhost:8080/api/password/reset`
-- **Headers:**
-  - `Content-Type: application/json`
-- **Request Body:**
-  ```json
-  { "token": "string", "password": "string" }
-  ```
-- **Success Response:**
-  - Status Code: `200 OK`
-  - Body: `{ "message": "Password has been reset!" }`
-
-### 12. Change Password
-
-- **Method:** `POST`
-- **URL:** `http://localhost:8080/api/password/change`
-- **Headers:**
-  - `Content-Type: application/json`
-  - `Authorization: Bearer <access_token>`
-- **Request Body:**
-  ```json
-  { "currentPassword": "string", "newPassword": "string" }
-  ```
-- **Success Response:**
-  - Status Code: `200 OK`
-  - Body: `{ "message": "Password has been changed!" }`
+- The API includes rate limiting for login attempts (5 attempts per 15 minutes).
+- CSRF protection is implemented for all routes except OAuth callbacks[this will be added later just befor production].

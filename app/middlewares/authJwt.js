@@ -9,20 +9,21 @@ const catchError = (err, res) => {
   if (err instanceof TokenExpiredError) {
     return res
       .status(401)
-      .send({ message: "Unauthorized! Access Token was expired!" });
+      .json({ message: "Unauthorized! Access Token was expired!" });
   }
-  return res.status(401).send({ message: "Unauthorized!" });
+  return res.status(401).json({ message: "Unauthorized!" });
 };
 
 const verifyToken = (req, res, next) => {
-  const token = req.session.token || req.headers["x-access-token"];
+  // Prioritize header token over session token for security
+  const token = req.headers["x-access-token"] || req.session.token;
 
   if (!token) {
-    return res.status(403).send({ message: "No token provided!" });
+    return res.status(403).json({ message: "No token provided!" });
   }
 
   try {
-    const decoded = jwt.verify(token, config.secret);
+    const decoded = jwt.verify(token, config.jwtSecret);
     req.userId = decoded.id;
     next();
   } catch (err) {

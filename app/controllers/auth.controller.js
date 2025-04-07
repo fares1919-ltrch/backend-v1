@@ -14,6 +14,17 @@ exports.signup = async (req, res) => {
       username: req.body.username,
       email: req.body.email,
       password: bcrypt.hashSync(req.body.password, 8),
+      provider: "local",
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      address: req.body.address,
+      city: req.body.city,
+      country: req.body.country,
+      postalCode: req.body.postalCode,
+      aboutMe: req.body.aboutMe,
+      work: req.body.work,
+      workplace: req.body.workplace,
+      photo: req.body.photo,
     });
 
     // Handle role assignment
@@ -25,7 +36,7 @@ exports.signup = async (req, res) => {
 
       // Check if all requested roles were found
       if (roles.length !== req.body.roles.length) {
-        return res.status(400).send({
+        return res.status(400).json({
           message: "One or more roles specified do not exist!",
           validRoles: ["user", "manager", "officer"],
           providedRoles: req.body.roles,
@@ -38,7 +49,7 @@ exports.signup = async (req, res) => {
       // Assign default 'user' role if no roles specified
       const defaultRole = await Role.findOne({ name: "user" });
       if (!defaultRole) {
-        return res.status(500).send({
+        return res.status(500).json({
           message: "Default role 'user' not found in the database!",
         });
       }
@@ -51,14 +62,19 @@ exports.signup = async (req, res) => {
     // Populate roles for response
     await savedUser.populate("roles", "-__v");
 
-    res.status(200).send({
+    res.status(200).json({
       message: "User was registered successfully!",
-      roles: savedUser.roles.map((role) => role.name),
+      user: {
+        id: savedUser._id,
+        username: savedUser.username,
+        email: savedUser.email,
+        roles: savedUser.roles.map((role) => role.name),
+      },
     });
   } catch (err) {
     res
       .status(500)
-      .send({ message: err.message || "An error occurred during signup" });
+      .json({ message: err.message || "An error occurred during signup" });
   }
 };
 
@@ -71,7 +87,7 @@ exports.signin = async (req, res) => {
     );
 
     if (!user) {
-      return res.status(404).send({ message: "User Not found." });
+      return res.status(404).json({ message: "User Not found." });
     }
 
     // Validate password
@@ -81,14 +97,14 @@ exports.signin = async (req, res) => {
     );
 
     if (!passwordIsValid) {
-      return res.status(401).send({
+      return res.status(401).json({
         accessToken: null,
         message: "Invalid Password!",
       });
     }
 
     // Generate JWT token
-    const token = jwt.sign({ id: user.id }, config.secret, {
+    const token = jwt.sign({ id: user.id }, config.jwtSecret, {
       algorithm: "HS256",
       allowInsecureKeySizes: true,
       expiresIn: config.jwtExpiration, // 1 hour
@@ -102,6 +118,17 @@ exports.signin = async (req, res) => {
       (role) => `ROLE_${role.name.toUpperCase()}`
     );
 
+    // Add session to user's active sessions
+    const session = {
+      token: token,
+      device: req.headers["user-agent"] || "Unknown",
+      lastActive: new Date(),
+      ipAddress: req.ip,
+    };
+
+    user.activeSessions.push(session);
+    await user.save();
+
     // Set session data
     req.session.token = token;
     req.session.userId = user._id;
@@ -109,7 +136,7 @@ exports.signin = async (req, res) => {
     req.session.roles = authorities;
 
     // Send response
-    res.status(200).send({
+    res.status(200).json({
       id: user._id,
       username: user.username,
       email: user.email,
@@ -120,20 +147,32 @@ exports.signin = async (req, res) => {
   } catch (err) {
     res
       .status(500)
-      .send({ message: err.message || "An error occurred during signin" });
+      .json({ message: err.message || "An error occurred during signin" });
   }
 };
 
-exports.signout = (req, res) => {
+exports.signout = async (req, res) => {
   try {
+    const token = req.headers["x-access-token"] || req.session.token;
+
+    if (token) {
+      // Remove the session from user's active sessions
+      const user = await User.findById(req.userId);
+      if (user) {
+        user.activeSessions = user.activeSessions.filter(
+          (session) => session.token !== token
+        );
+        await user.save();
+      }
+    }
+
     req.session = null;
-    return res.status(200).send({
+    return res.status(200).json({
       message: "You've been signed out successfully.",
     });
   } catch (err) {
-    // Fixed the error handling - use res.status for sending error response
     res
       .status(500)
-      .send({ message: err.message || "An error occurred during signout" });
+      .json({ message: err.message || "An error occurred during signout" });
   }
 };

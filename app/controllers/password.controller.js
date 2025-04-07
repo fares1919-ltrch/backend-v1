@@ -14,7 +14,7 @@ exports.forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).send({ message: "User not found!" });
+      return res.status(404).json({ message: "User not found!" });
     }
 
     // Generate reset token
@@ -47,9 +47,9 @@ exports.forgotPassword = async (req, res) => {
     // Send email
     await transporter.sendMail(mailOptions);
 
-    res.status(200).send({ message: "Password reset email sent!" });
+    res.status(200).json({ message: "Password reset email sent!" });
   } catch (err) {
-    res.status(500).send({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -71,7 +71,7 @@ exports.resetPassword = async (req, res) => {
     if (!user) {
       return res
         .status(400)
-        .send({ message: "Invalid or expired reset token!" });
+        .json({ message: "Invalid or expired reset token!" });
     }
 
     // Set new password
@@ -81,9 +81,9 @@ exports.resetPassword = async (req, res) => {
 
     await user.save();
 
-    res.status(200).send({ message: "Password has been reset!" });
+    res.status(200).json({ message: "Password has been reset!" });
   } catch (err) {
-    res.status(500).send({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -95,23 +95,23 @@ exports.changePassword = async (req, res) => {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).send({ message: "User not found!" });
+      return res.status(404).json({ message: "User not found!" });
     }
 
     // Verify current password
-    const isValidPassword = bcrypt.compareSync(currentPassword, user.password);
-    if (!isValidPassword) {
+    const isPasswordValid = bcrypt.compareSync(currentPassword, user.password);
+    if (!isPasswordValid) {
       return res
         .status(400)
-        .send({ message: "Current password is incorrect!" });
+        .json({ message: "Current password is incorrect!" });
     }
 
-    // Set new password
+    // Update password
     user.password = bcrypt.hashSync(newPassword, 8);
     await user.save();
 
-    res.status(200).send({ message: "Password has been changed!" });
+    res.status(200).json({ message: "Password changed successfully!" });
   } catch (err) {
-    res.status(500).send({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
