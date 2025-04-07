@@ -2,6 +2,7 @@ const db = require("../models");
 const User = db.user;
 const jwt = require("jsonwebtoken");
 const config = require("../config/auth.config");
+const path = require("path");
 
 // Get user profile
 exports.getProfile = async (req, res) => {
@@ -33,7 +34,6 @@ exports.updateProfile = async (req, res) => {
       "aboutMe",
       "work",
       "workplace",
-      "photo",
     ];
 
     const updates = Object.keys(req.body)
@@ -42,6 +42,11 @@ exports.updateProfile = async (req, res) => {
         obj[key] = req.body[key];
         return obj;
       }, {});
+
+    // Handle photo upload if present
+    if (req.file) {
+      updates.photo = `/uploads/${req.file.filename}`;
+    }
 
     const user = await User.findByIdAndUpdate(
       req.userId,

@@ -1,5 +1,6 @@
 const { authJwt } = require("../middlewares");
 const controller = require("../controllers/profile.controller");
+const upload = require("../middlewares/upload");
 
 module.exports = function (app) {
   app.use(function (req, res, next) {
@@ -10,7 +11,11 @@ module.exports = function (app) {
   // Profile routes (all require authentication)
   app.get("/api/profile", [authJwt.verifyToken], controller.getProfile);
 
-  app.put("/api/profile", [authJwt.verifyToken], controller.updateProfile);
+  app.put(
+    "/api/profile",
+    [authJwt.verifyToken, upload.single("photo")],
+    controller.updateProfile
+  );
 
   app.delete("/api/profile", [authJwt.verifyToken], controller.deleteAccount);
 

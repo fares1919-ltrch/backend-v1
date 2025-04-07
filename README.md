@@ -319,13 +319,33 @@
 
 **Headers:**
 
-- `Content-Type: application/json`
 - `Authorization: Bearer <token>`
+- `Content-Type: multipart/form-data`
 
-**Request Body (JSON):**
+**Request Body (Form Data):**
+
+```
+firstName: string
+lastName: string
+address: string
+city: string
+country: string
+postalCode: string
+aboutMe: string
+work: string
+workplace: string
+photo: file (optional, max 5MB, supported formats: jpg, jpeg, png, gif)
+```
+
+**Description:** Updates the authenticated user's profile information. The photo field is optional and accepts image files up to 5MB in size. Supported image formats are JPG, JPEG, PNG, and GIF.
+
+**Response:**
 
 ```json
 {
+  "id": "string",
+  "username": "string",
+  "email": "string",
   "firstName": "string",
   "lastName": "string",
   "address": "string",
@@ -335,11 +355,12 @@
   "aboutMe": "string",
   "work": "string",
   "workplace": "string",
-  "photo": "string"
+  "photo": "/uploads/filename.jpg",
+  "roles": ["string"]
 }
 ```
 
-**Description:** Updates the authenticated user's profile information.
+**Note:** The photo URL in the response will be relative to the server base URL. To access the photo, prepend the server URL to the photo path.
 
 ---
 

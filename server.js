@@ -5,6 +5,7 @@ const dbConfig = require("./app/config/db.config.js");
 const passport = require("passport");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
+const path = require("path");
 require("./app/config/passport"); // Load Passport config
 require("dotenv").config();
 
@@ -12,6 +13,12 @@ const app = express();
 
 // Security headers middleware
 app.use(helmet());
+
+// Serve static files from uploads directory
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "app/middlewares/uploads"))
+);
 
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
