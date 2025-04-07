@@ -1,4 +1,6 @@
-# Untitled
+# Backend endpoints
+
+## API Endpoints
 
 # API Endpoints Documentation
 
@@ -443,3 +445,248 @@ photo: file (optional, max 5MB, supported formats: jpg, jpeg, png, gif)
 - Unauthorized access to protected endpoints will result in a `401 Unauthorized` response.
 - The API includes rate limiting for login attempts (5 attempts per 15 minutes).
 - CSRF protection is implemented for all routes except OAuth callbacks[this will be added later just befor production].
+
+A robust backend API built with Node.js, Express, and MongoDB that provides authentication, user management, and profile features.
+
+## Features
+
+- User authentication (JWT-based)
+- OAuth2 authentication (Google, GitHub)
+- Profile management with photo upload
+- Password reset functionality
+- Session management
+- Role-based authorization (User, Manager, Officer)
+- Rate limiting for security
+- Secure cookie sessions
+- Error handling middleware
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- MongoDB (v4.4 or higher)
+- Google OAuth2 credentials (for Google login)
+- GitHub OAuth credentials (for GitHub login)
+
+## Setup Instructions
+
+1. Clone the repository:
+
+```bash
+git clone [repository-url]
+cd node-js-express-login--mongodb
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Create a `.env` file in the root directory with the following variables:
+
+```env
+# Server Configuration
+PORT=8080
+NODE_ENV=development
+
+# MongoDB Configuration
+DB_HOST=localhost
+DB_PORT=27017
+DB_NAME=your_database_name
+
+# JWT Configuration
+JWT_SECRET=your-jwt-secret-key
+JWT_EXPIRATION=86400
+
+# Session Configuration
+SESSION_SECRET=your-session-secret
+
+# OAuth Configuration
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_CALLBACK_URL=http://localhost:8080/api/auth/google/callback
+
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GITHUB_CALLBACK_URL=http://localhost:8080/api/auth/github/callback
+
+# Frontend URL for CORS
+CLIENT_URL=http://localhost:4200
+
+# Email Configuration (for password reset)
+EMAIL_SERVICE=gmail
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-email-app-password
+```
+
+4. Create the uploads directory:
+
+```bash
+mkdir -p app/middlewares/uploads
+```
+
+5. Start the server:
+
+```bash
+npm start
+```
+
+## API Documentation
+
+### Base URL
+
+```
+http://localhost:8080
+```
+
+### Authentication Headers
+
+For protected routes, include the JWT token in the Authorization header:
+
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Response Format
+
+All responses follow this format:
+
+```json
+{
+  "message": "Success/Error message",
+  "data": {}, // Optional response data
+  "error": {} // Optional error details
+}
+```
+
+### Error Handling
+
+Common error status codes:
+
+- 400: Bad Request
+- 401: Unauthorized
+- 403: Forbidden
+- 404: Not Found
+- 429: Too Many Requests
+- 500: Internal Server Error
+
+### Rate Limiting
+
+- Login attempts are limited to 5 per 15 minutes per IP
+- Exceeded limits will return a 429 status code
+
+### File Upload Specifications
+
+For photo uploads:
+
+- Maximum file size: 5MB
+- Supported formats: JPG, JPEG, PNG, GIF
+- Files are stored in: `/app/middlewares/uploads`
+- Access URL pattern: `/uploads/{filename}`
+
+## Development Notes
+
+### Security Features
+
+- CORS enabled with configurable origin
+- Helmet.js for security headers
+- Rate limiting on sensitive endpoints
+- Secure cookie sessions
+- Password hashing with bcrypt
+- JWT token authentication
+- File upload validation
+
+### Database Schema
+
+**User Model:**
+
+```javascript
+{
+  username: String,
+  email: String,
+  password: String,
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+  provider: {
+    type: String,
+    enum: ["local", "google", "github"],
+    default: "local"
+  },
+  googleId: String,
+  githubId: String,
+  firstName: String,
+  lastName: String,
+  address: String,
+  city: String,
+  country: String,
+  postalCode: String,
+  aboutMe: String,
+  work: String,
+  workplace: String,
+  photo: String,
+  activeSessions: [{
+    token: String,
+    device: String,
+    lastActive: Date,
+    ipAddress: String
+  }],
+  roles: [{
+    type: ObjectId,
+    ref: "Role"
+  }]
+}
+```
+
+**Role Model:**
+
+```javascript
+{
+  name: String; // "user", "manager", "officer"
+}
+```
+
+### OAuth Flow
+
+1. Frontend redirects to:
+
+   - Google: `/api/auth/google`
+   - GitHub: `/api/auth/github`
+
+2. User authenticates with provider
+
+3. Provider redirects to callback URL:
+
+   - Google: `/api/auth/google/callback`
+   - GitHub: `/api/auth/github/callback`
+
+4. Backend creates/updates user and returns JWT
+
+### Testing the API
+
+You can use tools like Postman or curl to test the API. Example curl commands:
+
+```bash
+# Login
+curl -X POST http://localhost:8080/api/auth/signin \
+  -H "Content-Type: application/json" \
+  -d '{"username":"example","password":"123456"}'
+
+# Update Profile with Photo
+curl -X PUT http://localhost:8080/api/profile \
+  -H "Authorization: Bearer <your-token>" \
+  -F "photo=@/path/to/photo.jpg" \
+  -F "firstName=John" \
+  -F "lastName=Doe"
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the ISC License.
