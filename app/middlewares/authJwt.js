@@ -83,10 +83,27 @@ const isOfficer = async (req, res, next) => {
   }
 };
 
+const isManagerOrOfficer = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId).populate("roles");
+    const roles = user.roles.map(role => role.name);
+    
+    if (roles.includes("manager") || roles.includes("officer")) {
+      next();
+      return;
+    }
+
+    res.status(403).send({ message: "Require Manager or Officer Role!" });
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
 const authJwt = {
   verifyToken,
   isManager,
   isOfficer,
+  isManagerOrOfficer,
 };
 
 module.exports = authJwt;

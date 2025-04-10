@@ -129,11 +129,24 @@ exports.signin = async (req, res) => {
     user.activeSessions.push(session);
     await user.save();
 
-    // Set session data
+    // Set session data with enhanced security
     req.session.token = token;
     req.session.userId = user._id;
     req.session.username = user.username;
     req.session.roles = authorities;
+    req.session.lastActive = new Date();
+
+    // Set secure cookie with token
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      domain:
+        process.env.NODE_ENV === "production"
+          ? process.env.DOMAIN
+          : "localhost",
+    });
 
     // Send response
     res.status(200).json({

@@ -12,11 +12,36 @@ require("dotenv").config();
 const app = express();
 
 // Security headers middleware
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 
-// Serve static files from uploads directory
+var corsOptions = {
+  origin: process.env.CLIENT_URL || "http://localhost:4200",
+  credentials: true,
+  allowHeaders: [
+    "Origin, Content-Type, Accept, Authorization, X-Requested-With",
+    "Access-Control-Allow-Origin",
+  ],
+  exposedHeaders: ["Content-Disposition"],
+};
+
+app.use(cors(corsOptions));
+
+// Serve static files from uploads directory with CORS
 app.use(
   "/uploads",
+  (req, res, next) => {
+    res.header(
+      "Access-Control-Allow-Origin",
+      process.env.CLIENT_URL || "http://localhost:4200"
+    );
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
   express.static(path.join(__dirname, "app/middlewares/uploads"))
 );
 
@@ -30,17 +55,6 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-var corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:4200",
-  credentials: true,
-  allowHeaders: [
-    "Origin, Content-Type, Accept, Authorization, X-Requested-With",
-    "Access-Control-Allow-Origin",
-  ],
-};
-
-app.use(cors(corsOptions));
 
 // parse requests of content-type - application/json
 app.use(express.json());
@@ -56,7 +70,9 @@ app.use(
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: "strict",
+    sameSite: "lax",
+    domain:
+      process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost",
   })
 );
 
@@ -85,13 +101,27 @@ app.get("/", (req, res) => {
 
 // routes
 require("./app/routes/auth.routes")(app);
-require("./app/routes/user.routes")(app);
-require("./app/routes/password.routes")(app);
-require("./app/routes/profile.routes")(app);
+require("./app/routes/cpfRequest.routes")(app);
+require("./app/routes/appointment.routes")(app);
+require("./app/routes/biometricData.routes")(app);
+require("./app/routes/cpfCredential.routes")(app);
+require("./app/routes/notification.routes")(app);
+require("./app/routes/center.routes")(app);
+require("./app/routes/stats.routes")(app);
 
 // Error handling middleware
-const errorHandler = require("./app/middlewares/errorHandler");
-app.use(errorHandler);
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({
+    message: "Something went wrong!",
+    error: process.env.NODE_ENV === "development" ? err.message : undefined
+  });
+});
+
+// Handle 404
+app.use((req, res) => {
+  res.status(404).send({ message: "Not Found" });
+});
 
 // set port, listen for requests
 const PORT = process.env.PORT || 8080;
