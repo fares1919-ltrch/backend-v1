@@ -1,74 +1,44 @@
 const db = require("../models");
 const CpfCredential = db.cpfCredential;
-const CpfRequest = db.cpfRequest;
 const User = db.user;
-const { generateCpf } = require("../utils/cpfGenerator");
+const BiometricData = db.biometricData;
+const crypto = require("crypto");
+const moment = require("moment");
 
-// Issue new CPF credential
-exports.issue = async (req, res) => {
+// Issue a new CPF credential
+exports.issueCpfCredential = async (req, res) => {
   try {
-    const { userId, cpfRequestId, validUntil } = req.body;
+    const { userId } = req.body;
 
-    // Check if user already has an active credential
-    const existingCredential = await CpfCredential.findOne({
-      userId,
-      status: "active"
-    });
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
 
+    // Check if user already has a credential
+    const existingCredential = await CpfCredential.findOne({ userId });
     if (existingCredential) {
       return res.status(400).send({
-        message: "User already has an active CPF credential"
+        message: "User already has a CPF credential"
       });
     }
 
-    // Verify CPF request is approved
-    const cpfRequest = await CpfRequest.findOne({
-      _id: cpfRequestId,
-      status: "approved"
-    }).populate("userId", "firstName lastName");
+    // Generate new credential number
+    const cpfNumber = generateCpfNumber();
 
-    if (!cpfRequest) {
-      return res.status(404).send({
-        message: "No approved CPF request found"
-      });
-    }
-
-    // Validate validUntil date
-    const validUntilDate = new Date(validUntil);
-    if (isNaN(validUntilDate.getTime())) {
-      return res.status(400).send({
-        message: "Invalid validUntil date format. Please use YYYY-MM-DD format"
-      });
-    }
-
-    if (validUntilDate <= new Date()) {
-      return res.status(400).send({
-        message: "validUntil date must be in the future"
-      });
-    }
-
-    // Generate CPF number using user's identity information
-    const cpfNumber = generateCpf(
-      `${cpfRequest.userId.firstName} ${cpfRequest.userId.lastName}`,
-      cpfRequest.birthDate,
-      cpfRequest.identityNumber
-    );
-
-    // Create new CPF credential
+    // Create new credential
     const credential = new CpfCredential({
       userId,
-      cpfRequestId,
-      credentialNumber: cpfNumber,
-      issuedBy: req.userId, // Current officer
-      validUntil: validUntilDate,
-      status: "active"
+      cpfNumber,
+      status: "active",
+      issuedBy: req.userId,
+      issuedDate: new Date(),
+      expiryDate: moment().add(10, 'years').toDate()
     });
 
+    // Save credential
     const savedCredential = await credential.save();
-
-    // Update CPF request status to indicate credential was issued
-    cpfRequest.status = "completed";
-    await cpfRequest.save();
 
     res.status(201).send(savedCredential);
   } catch (err) {
@@ -77,15 +47,24 @@ exports.issue = async (req, res) => {
 };
 
 // Get user's CPF credential
-exports.getUserCredential = async (req, res) => {
+exports.getCpfCredential = async (req, res) => {
   try {
-    const credential = await CpfCredential.findOne({ userId: req.userId })
-      .populate("cpfRequestId")
-      .populate("issuedBy", "username firstName lastName")
-      .sort({ createdAt: -1 });
+    const credential = await CpfCredential.findOne({
+      userId: req.params.userId
+    }).populate("userId");
 
     if (!credential) {
-      return res.status(404).send({ message: "No CPF credential found" });
+      return res.status(404).send({ message: "CPF credential not found" });
+    }
+
+    // Check authorization
+    const user = await User.findById(req.userId).populate("roles");
+    const roles = user.roles.map(role => role.name);
+    
+    if (!roles.includes('officer') && credential.userId.toString() !== req.userId) {
+      return res.status(403).send({
+        message: "Not authorized to view this credential"
+      });
     }
 
     res.send(credential);
@@ -94,46 +73,123 @@ exports.getUserCredential = async (req, res) => {
   }
 };
 
-// Verify CPF credential
-exports.verifyCredential = async (req, res) => {
+// Verify CPF credential authenticity
+exports.verifyCpfCredential = async (req, res) => {
   try {
-    const { credentialNumber } = req.params;
-    const credential = await CpfCredential.findOne({ credentialNumber })
-      .populate("userId", "firstName lastName")
-      .populate("issuedBy", "firstName lastName")
-      .populate("cpfRequestId", "identityNumber birthDate");
+    const credential = await CpfCredential.findById(req.params.id);
 
     if (!credential) {
       return res.status(404).send({ message: "CPF credential not found" });
     }
 
     // Check if credential is still valid
-    if (credential.status !== "active" || credential.validUntil < new Date()) {
-      return res.status(400).send({
-        message: "CPF credential is no longer valid",
-        status: credential.status,
-        validUntil: credential.validUntil
-      });
-    }
+    const isValid = moment().isBefore(moment(credential.expiryDate));
 
-    // Verify CPF number authenticity
-    const expectedCpfNumber = generateCpf(
-      `${credential.userId.firstName} ${credential.userId.lastName}`,
-      credential.cpfRequestId.birthDate,
-      credential.cpfRequestId.identityNumber
-    );
-
-    if (expectedCpfNumber !== credential.credentialNumber) {
-      return res.status(400).send({
-        message: "CPF credential has been tampered with"
-      });
-    }
+    // Verify biometric data if available
+    const biometricData = await BiometricData.findOne({ userId: credential.userId });
+    const biometricVerified = biometricData ? true : false;
 
     res.send({
-      message: "CPF credential is valid",
-      credential
+      valid: isValid,
+      status: credential.status,
+      biometricVerified,
+      expiryDate: credential.expiryDate
     });
   } catch (err) {
     res.status(500).send({ message: err.message });
   }
 };
+
+// Revoke CPF credential
+exports.revokeCpfCredential = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const credential = await CpfCredential.findById(req.params.id);
+
+    if (!credential) {
+      return res.status(404).send({ message: "CPF credential not found" });
+    }
+
+    // Check authorization
+    const user = await User.findById(req.userId).populate("roles");
+    const roles = user.roles.map(role => role.name);
+    
+    if (!roles.includes('officer')) {
+      return res.status(403).send({
+        message: "Not authorized to revoke credentials"
+      });
+    }
+
+    // Update credential status
+    credential.status = "revoked";
+    credential.revokedBy = req.userId;
+    credential.revokedDate = new Date();
+    credential.revocationReason = reason;
+
+    await credential.save();
+
+    res.send({ message: "CPF credential revoked successfully" });
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+// Get CPF credential statistics
+exports.getCredentialStats = async (req, res) => {
+  try {
+    // Only officers can view stats
+    const user = await User.findById(req.userId).populate("roles");
+    const roles = user.roles.map(role => role.name);
+    
+    if (!roles.includes('officer')) {
+      return res.status(403).send({ message: "Not authorized to view statistics" });
+    }
+
+    const [total, active, revoked, issuedToday] = await Promise.all([
+      CpfCredential.countDocuments(),
+      CpfCredential.countDocuments({ status: "active" }),
+      CpfCredential.countDocuments({ status: "revoked" }),
+      CpfCredential.countDocuments({
+        issuedDate: {
+          $gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
+        }
+      })
+    ]);
+
+    res.send({
+      total,
+      active,
+      revoked,
+      issuedToday,
+      lastUpdated: new Date()
+    });
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+// Helper function to generate CPF number
+function generateCpfNumber() {
+  // Generate random 9 digits
+  let cpf = Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
+  
+  // Calculate first check digit
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cpf.charAt(i)) * (10 - i);
+  }
+  let firstDigit = (sum * 10) % 11;
+  firstDigit = firstDigit === 10 ? 0 : firstDigit;
+  cpf += firstDigit;
+
+  // Calculate second check digit
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cpf.charAt(i)) * (11 - i);
+  }
+  let secondDigit = (sum * 10) % 11;
+  secondDigit = secondDigit === 10 ? 0 : secondDigit;
+  cpf += secondDigit;
+
+  return cpf;
+}

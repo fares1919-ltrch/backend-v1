@@ -7,7 +7,7 @@ const config = require("../config/biometric.config");
 const fs = require('fs').promises;
 
 // Submit biometric data
-exports.submit = async (req, res) => {
+exports.submitBiometricData = async (req, res) => {
   try {
     const { userId, appointmentId } = req.body;
 
@@ -140,7 +140,7 @@ exports.submit = async (req, res) => {
 };
 
 // Get user's biometric data
-exports.getUserBiometricData = async (req, res) => {
+exports.getBiometricData = async (req, res) => {
   try {
     const biometricData = await BiometricData.findOne({
       userId: req.params.userId
@@ -166,8 +166,93 @@ exports.getUserBiometricData = async (req, res) => {
   }
 };
 
+// Update user's biometric data
+exports.updateBiometricData = async (req, res) => {
+  try {
+    const biometricData = await BiometricData.findOne({
+      userId: req.params.userId
+    });
+
+    if (!biometricData) {
+      return res.status(404).send({ message: "No biometric data found" });
+    }
+
+    // Check authorization
+    const user = await User.findById(req.userId).populate("roles");
+    const roles = user.roles.map(role => role.name);
+    
+    if (!roles.includes('officer') && biometricData.officerId.toString() !== req.userId) {
+      return res.status(403).send({
+        message: "Not authorized to update this biometric data"
+      });
+    }
+
+    // Process updates
+    if (req.biometricFiles.fingerprints) {
+      const fingerprints = [];
+      for (const file of req.biometricFiles.fingerprints) {
+        const imageData = await fs.readFile(file.path);
+        const processed = await BiometricProcessor.processFingerprintImage(imageData, 'WSQ');
+        fingerprints.push(processed);
+      }
+      biometricData.fingerprints = fingerprints;
+    }
+
+    if (req.biometricFiles.face) {
+      const faceData = await fs.readFile(req.biometricFiles.face[0].path);
+      biometricData.face = await BiometricProcessor.processFacialImage(faceData);
+    }
+
+    if (req.biometricFiles.iris) {
+      const iris = {};
+      if (req.biometricFiles.iris[0]) {
+        const rightData = await fs.readFile(req.biometricFiles.iris[0].path);
+        iris.right = await BiometricProcessor.processIrisImage(rightData);
+      }
+      if (req.biometricFiles.iris[1]) {
+        const leftData = await fs.readFile(req.biometricFiles.iris[1].path);
+        iris.left = await BiometricProcessor.processIrisImage(leftData);
+      }
+      biometricData.iris = iris;
+    }
+
+    await biometricData.save();
+    res.send(biometricData);
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+// Delete user's biometric data
+exports.deleteBiometricData = async (req, res) => {
+  try {
+    const biometricData = await BiometricData.findOne({
+      userId: req.params.userId
+    });
+
+    if (!biometricData) {
+      return res.status(404).send({ message: "No biometric data found" });
+    }
+
+    // Check authorization
+    const user = await User.findById(req.userId).populate("roles");
+    const roles = user.roles.map(role => role.name);
+    
+    if (!roles.includes('officer') && biometricData.officerId.toString() !== req.userId) {
+      return res.status(403).send({
+        message: "Not authorized to delete this biometric data"
+      });
+    }
+
+    await biometricData.deleteOne();
+    res.send({ message: "Biometric data deleted successfully" });
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
 // Verify biometric data quality
-exports.verifyQuality = async (req, res) => {
+exports.verifyBiometricData = async (req, res) => {
   try {
     const biometricData = await BiometricData.findById(req.params.id);
     
@@ -222,7 +307,7 @@ exports.verifyQuality = async (req, res) => {
 };
 
 // Get collection center statistics
-exports.getCollectionStats = async (req, res) => {
+exports.getCollectionCenterStats = async (req, res) => {
   try {
     // Only officers can view stats
     const user = await User.findById(req.userId).populate("roles");

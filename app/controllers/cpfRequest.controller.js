@@ -18,6 +18,18 @@ exports.create = async (req, res) => {
       });
     }
 
+    // Check if identity number is already in use
+    const existingIdentity = await CpfRequest.findOne({
+      identityNumber: req.body.identityNumber,
+      status: { $in: ["approved", "pending", "completed"] }
+    });
+
+    if (existingIdentity) {
+      return res.status(400).send({
+        message: "This identity number is already associated with an active CPF request or credential."
+      });
+    }
+
     // Validate identity number (basic validation)
     if (!req.body.identityNumber || req.body.identityNumber.length < 5) {
       return res.status(400).send({
@@ -46,6 +58,34 @@ exports.create = async (req, res) => {
       });
     }
 
+    // Validate training dates
+    if (!req.body.startDate || !req.body.endDate) {
+      return res.status(400).send({
+        message: "Training start and end dates are required"
+      });
+    }
+
+    const startDate = new Date(req.body.startDate);
+    const endDate = new Date(req.body.endDate);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).send({
+        message: "Invalid date format for training dates. Please use ISO format."
+      });
+    }
+
+    if (startDate < new Date()) {
+      return res.status(400).send({
+        message: "Training start date cannot be in the past"
+      });
+    }
+
+    if (endDate <= startDate) {
+      return res.status(400).send({
+        message: "Training end date must be after start date"
+      });
+    }
+
     const request = new CpfRequest({
       userId: req.userId,
       identityNumber: req.body.identityNumber,
@@ -53,7 +93,11 @@ exports.create = async (req, res) => {
       startDate: req.body.startDate,
       endDate: req.body.endDate,
       duration: req.body.duration,
-      cost: req.body.cost
+      cost: req.body.cost,
+      status: "pending",
+      officerDecision: {
+        status: "pending"
+      }
     });
 
     const savedRequest = await request.save();
@@ -150,16 +194,30 @@ exports.updateDecision = async (req, res) => {
       return res.status(400).send({ message: "Can only update pending requests" });
     }
 
+    // No need to validate appointment date here anymore
     request.status = req.body.status;
     request.officerDecision = {
       status: req.body.status,
-      comment: req.body.comment,
+      comments: req.body.comments, // Changed from comment to comments to match API spec
       decidedAt: new Date(),
       decidedBy: req.userId
     };
 
     const updatedRequest = await request.save();
-    res.send(updatedRequest);
+
+    // Format response to match API spec
+    const response = {
+      id: updatedRequest._id,
+      status: updatedRequest.status,
+      officerDecision: {
+        status: updatedRequest.officerDecision.status,
+        comments: updatedRequest.officerDecision.comments,
+        decidedBy: updatedRequest.officerDecision.decidedBy,
+        decidedAt: updatedRequest.officerDecision.decidedAt
+      }
+    };
+
+    res.send(response);
   } catch (err) {
     res.status(500).send({ message: err.message });
   }
@@ -193,11 +251,58 @@ exports.getUserRequest = async (req, res) => {
 // Get all pending CPF requests (officer only)
 exports.getPendingRequests = async (req, res) => {
   try {
-    const requests = await CpfRequest.find({ status: "pending" })
-      .populate("userId", "username email firstName lastName")
-      .sort({ createdAt: 1 });
+    const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc' } = req.query;
 
-    res.send(requests);
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: {
+        [sortBy]: order === 'desc' ? -1 : 1
+      }
+    };
+
+    // First populate the userId field
+    const populatedRequest = CpfRequest.find({ status: "pending" })
+      .populate("userId", "username email firstName lastName");
+
+    // Then paginate the results
+    const requests = await populatedRequest.paginate(options);
+
+    res.send({
+      requests: requests.docs,
+      totalPages: requests.totalPages,
+      currentPage: requests.page
+    });
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+// Delete CPF request (user can only delete their own pending requests)
+exports.deleteRequest = async (req, res) => {
+  try {
+    const request = await CpfRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).send({ message: "Request not found" });
+    }
+
+    // Check if user has access to this request
+    if (request.userId.toString() !== req.userId) {
+      return res.status(403).send({ message: "Not authorized to delete this request" });
+    }
+
+    // Only allow deletion of pending requests
+    if (request.status !== "pending") {
+      return res.status(400).send({
+        message: "Only pending requests can be deleted"
+      });
+    }
+
+    // Delete the request
+    await CpfRequest.findByIdAndDelete(req.params.id);
+
+    res.status(200).send({ message: "Request deleted successfully" });
   } catch (err) {
     res.status(500).send({ message: err.message });
   }

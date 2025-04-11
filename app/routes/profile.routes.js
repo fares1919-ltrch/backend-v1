@@ -2,40 +2,226 @@ const { authJwt } = require("../middlewares");
 const controller = require("../controllers/profile.controller");
 const upload = require("../middlewares/upload");
 
-module.exports = function (app) {
-  app.use(function (req, res, next) {
-    res.header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept");
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Profile:
+ *       type: object
+ *       properties:
+ *         firstName:
+ *           type: string
+ *           description: User's first name
+ *         lastName:
+ *           type: string
+ *           description: User's last name
+ *         dateOfBirth:
+ *           type: string
+ *           format: date
+ *           description: User's date of birth
+ *         gender:
+ *           type: string
+ *           enum: [male, female, other]
+ *         phoneNumber:
+ *           type: string
+ *           description: User's phone number
+ *         address:
+ *           type: object
+ *           properties:
+ *             street:
+ *               type: string
+ *             city:
+ *               type: string
+ *             state:
+ *               type: string
+ *             zipCode:
+ *               type: string
+ *         nationality:
+ *           type: string
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+module.exports = function(app) {
+  app.use(function(req, res, next) {
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, Content-Type, Accept"
+    );
     next();
   });
 
-  // Profile routes (all require authentication)
-  app.get("/api/profile", [authJwt.verifyToken], controller.getProfile);
+  /**
+   * @swagger
+   * /api/profile:
+   *   get:
+   *     summary: Get current user's profile
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: User profile data
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Profile'
+   *       403:
+   *         description: Not authorized
+   *       404:
+   *         description: Profile not found
+   */
+  app.get(
+    "/api/profile",
+    [authJwt.verifyToken],
+    controller.getProfile
+  );
 
+  /**
+   * @swagger
+   * /api/profile:
+   *   put:
+   *     summary: Update current user's profile
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/Profile'
+   *     responses:
+   *       200:
+   *         description: Profile updated successfully
+   *       400:
+   *         description: Invalid input data
+   *       403:
+   *         description: Not authorized
+   */
   app.put(
     "/api/profile",
     [authJwt.verifyToken, upload.single("photo")],
     controller.updateProfile
   );
 
-  app.delete("/api/profile", [authJwt.verifyToken], controller.deleteAccount);
+  /**
+   * @swagger
+   * /api/profile:
+   *   delete:
+   *     summary: Delete current user's profile
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Profile deleted successfully
+   *       403:
+   *         description: Not authorized
+   */
+  app.delete(
+    "/api/profile",
+    [authJwt.verifyToken],
+    controller.deleteAccount
+  );
 
-  // OAuth account linking
+  /**
+   * @swagger
+   * /api/profile/link-oauth:
+   *   post:
+   *     summary: Link OAuth account to current user's profile
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: OAuth account linked successfully
+   *       403:
+   *         description: Not authorized
+   */
   app.post(
     "/api/profile/link-oauth",
     [authJwt.verifyToken],
     controller.linkOAuthAccount
   );
 
-  // Session management
+  /**
+   * @swagger
+   * /api/profile/sessions:
+   *   get:
+   *     summary: Get current user's active sessions
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Active sessions data
+   *       403:
+   *         description: Not authorized
+   */
   app.get(
     "/api/profile/sessions",
     [authJwt.verifyToken],
     controller.getActiveSessions
   );
 
+  /**
+   * @swagger
+   * /api/profile/sessions/{sessionToken}:
+   *   delete:
+   *     summary: Revoke current user's session
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: sessionToken
+   *         schema:
+   *           type: string
+   *         required: true
+   *         description: Session token to revoke
+   *     responses:
+   *       200:
+   *         description: Session revoked successfully
+   *       403:
+   *         description: Not authorized
+   */
   app.delete(
     "/api/profile/sessions/:sessionToken",
     [authJwt.verifyToken],
     controller.revokeSession
+  );
+
+  /**
+   * @swagger
+   * /api/profile:
+   *   put:
+   *     summary: Update current user's profile with photo
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               photo:
+   *                 type: string
+   *                 format: binary
+   *     responses:
+   *       200:
+   *         description: Profile updated successfully
+   *       400:
+   *         description: Invalid file format
+   *       403:
+   *         description: Not authorized
+   */
+  app.put(
+    "/api/profile",
+    [authJwt.verifyToken, upload.single("photo")],
+    controller.updateProfile
   );
 };

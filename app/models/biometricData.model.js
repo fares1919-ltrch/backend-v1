@@ -8,11 +8,13 @@ const BiometricData = mongoose.model(
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true,
+        index: true
       },
       appointmentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Appointment",
         required: true,
+        index: true
       },
       officerId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -115,7 +117,8 @@ const BiometricData = mongoose.model(
       verificationStatus: {
         type: String,
         enum: ["pending", "verified", "failed", "requires_review"],
-        default: "pending"
+        default: "pending",
+        index: true
       },
       verificationDetails: {
         verifiedBy: {
@@ -157,14 +160,14 @@ const BiometricData = mongoose.model(
     },
     {
       timestamps: true,
+      indexes: [
+        { userId: 1 },
+        { appointmentId: 1 },
+        { verificationStatus: 1 },
+        { "collectionMetadata.location": "2dsphere" }
+      ]
     }
   )
 );
-
-// Create indexes for better query performance
-BiometricData.index({ userId: 1 });
-BiometricData.index({ appointmentId: 1 });
-BiometricData.index({ verificationStatus: 1 });
-BiometricData.index({ "collectionMetadata.location": "2dsphere" });
 
 module.exports = BiometricData;

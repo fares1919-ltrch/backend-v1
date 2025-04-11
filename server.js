@@ -6,6 +6,8 @@ const passport = require("passport");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const path = require("path");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 require("./app/config/passport"); // Load Passport config
 require("dotenv").config();
 
@@ -101,6 +103,8 @@ app.get("/", (req, res) => {
 
 // routes
 require("./app/routes/auth.routes")(app);
+require("./app/routes/user.routes")(app);
+require("./app/routes/profile.routes")(app);
 require("./app/routes/cpfRequest.routes")(app);
 require("./app/routes/appointment.routes")(app);
 require("./app/routes/biometricData.routes")(app);
@@ -108,6 +112,9 @@ require("./app/routes/cpfCredential.routes")(app);
 require("./app/routes/notification.routes")(app);
 require("./app/routes/center.routes")(app);
 require("./app/routes/stats.routes")(app);
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

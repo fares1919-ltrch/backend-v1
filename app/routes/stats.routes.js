@@ -1,6 +1,52 @@
 const { authJwt } = require("../middlewares");
 const controller = require("../controllers/stats.controller");
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Statistics:
+ *       type: object
+ *       properties:
+ *         cpfRequests:
+ *           type: object
+ *           properties:
+ *             total:
+ *               type: number
+ *             approved:
+ *               type: number
+ *             rejected:
+ *               type: number
+ *             pending:
+ *               type: number
+ *             completed:
+ *               type: number
+ *         biometrics:
+ *           type: object
+ *           properties:
+ *             total:
+ *               type: number
+ *             withFingerprints:
+ *               type: number
+ *             withFace:
+ *               type: number
+ *             withIris:
+ *               type: number
+ *         appointments:
+ *           type: object
+ *           properties:
+ *             total:
+ *               type: number
+ *             completed:
+ *               type: number
+ *             cancelled:
+ *               type: number
+ *             noShow:
+ *               type: number
+ *             rescheduled:
+ *               type: number
+ */
+
 module.exports = function(app) {
   app.use(function(req, res, next) {
     res.header(
@@ -10,38 +56,187 @@ module.exports = function(app) {
     next();
   });
 
-  // Get CPF request statistics (Officer only)
+  /**
+   * @swagger
+   * /api/stats/cpf-requests:
+   *   get:
+   *     summary: Get CPF request statistics (manager/officer only)
+   *     tags: [Statistics]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: startDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Start date for filtering
+   *       - in: query
+   *         name: endDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: End date for filtering
+   *     responses:
+   *       200:
+   *         description: CPF request statistics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Statistics'
+   *       403:
+   *         description: Not authorized
+   */
   app.get(
     "/api/stats/cpf-requests",
-    [authJwt.verifyToken, authJwt.isOfficer],
+    [authJwt.verifyToken, authJwt.isManagerOrOfficer],
     controller.getCpfRequestStats
   );
 
-  // Get biometric collection statistics (Officer only)
+  /**
+   * @swagger
+   * /api/stats/biometrics:
+   *   get:
+   *     summary: Get biometric data statistics (manager/officer only)
+   *     tags: [Statistics]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: startDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Start date for filtering
+   *       - in: query
+   *         name: endDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: End date for filtering
+   *     responses:
+   *       200:
+   *         description: Biometric data statistics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Statistics'
+   *       403:
+   *         description: Not authorized
+   */
   app.get(
-    "/api/stats/biometric-data",
-    [authJwt.verifyToken, authJwt.isOfficer],
+    "/api/stats/biometrics",
+    [authJwt.verifyToken, authJwt.isManagerOrOfficer],
     controller.getBiometricStats
   );
 
-  // Get appointment statistics (Officer only)
+  /**
+   * @swagger
+   * /api/stats/appointments:
+   *   get:
+   *     summary: Get appointment statistics (manager/officer only)
+   *     tags: [Statistics]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: startDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Start date for filtering
+   *       - in: query
+   *         name: endDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: End date for filtering
+   *     responses:
+   *       200:
+   *         description: Appointment statistics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Statistics'
+   *       403:
+   *         description: Not authorized
+   */
   app.get(
     "/api/stats/appointments",
-    [authJwt.verifyToken, authJwt.isOfficer],
+    [authJwt.verifyToken, authJwt.isManagerOrOfficer],
     controller.getAppointmentStats
   );
 
-  // Get regional statistics (Officer only)
+  /**
+   * @swagger
+   * /api/stats/regional:
+   *   get:
+   *     summary: Get regional statistics (manager/officer only)
+   *     tags: [Statistics]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Regional statistics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   region:
+   *                     type: string
+   *                   centers:
+   *                     type: number
+   *                   appointments:
+   *                     type: number
+   *                   requests:
+   *                     type: number
+   *                   completed:
+   *                     type: number
+   *       403:
+   *         description: Not authorized
+   */
   app.get(
-    "/api/stats/regions",
-    [authJwt.verifyToken, authJwt.isOfficer],
+    "/api/stats/regional",
+    [authJwt.verifyToken, authJwt.isManagerOrOfficer],
     controller.getRegionalStats
   );
 
-  // Get system overview statistics (Officer only)
+  /**
+   * @swagger
+   * /api/stats/overview:
+   *   get:
+   *     summary: Get system overview statistics (manager/officer only)
+   *     tags: [Statistics]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: System overview statistics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 totalRequests:
+   *                   type: number
+   *                 totalAppointments:
+   *                   type: number
+   *                 totalCenters:
+   *                   type: number
+   *                 totalBiometrics:
+   *                   type: number
+   *                 lastUpdated:
+   *                   type: string
+   *                   format: date-time
+   *       403:
+   *         description: Not authorized
+   */
   app.get(
     "/api/stats/overview",
-    [authJwt.verifyToken, authJwt.isOfficer],
+    [authJwt.verifyToken, authJwt.isManagerOrOfficer],
     controller.getSystemOverview
   );
 };

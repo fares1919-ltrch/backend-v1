@@ -1,9 +1,8 @@
 const jwt = require("jsonwebtoken");
 const { TokenExpiredError } = jwt;
 const config = require("../config/auth.config.js");
-const db = require("../models");
-const User = db.user;
-const Role = db.role;
+const mongoose = require('mongoose');
+const User = require("../models/user.model");
 
 const catchError = (err, res) => {
   if (err instanceof TokenExpiredError) {
@@ -25,6 +24,12 @@ const verifyToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
     req.userId = decoded.id;
+    
+    // Ensure userId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.userId)) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+
     next();
   } catch (err) {
     return catchError(err, res);

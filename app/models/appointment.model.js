@@ -29,7 +29,11 @@ const Appointment = mongoose.model(
         default: "scheduled",
       },
       notes: String,
-      location: String,
+      location: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Center",
+        required: true
+      },
       createdAt: {
         type: Date,
         default: Date.now,
