@@ -309,7 +309,35 @@
 
 **Request Body:** None
 
-**Description:** Retrieves the authenticated user's profile information.
+**Response:**
+```json
+{
+  "_id": "ObjectId",
+  "username": "string",
+  "email": "string",
+  "firstName": "string",
+  "lastName": "string",
+  "address": "string",
+  "city": "string",
+  "country": "string",
+  "postalCode": "string",
+  "aboutMe": "string",
+  "work": "string",
+  "workplace": "string",
+  "photo": "/uploads/filename.jpg",
+  "roles": ["string"],
+  "activeSessions": [
+    {
+      "token": "string",
+      "device": "string",
+      "lastActive": "timestamp",
+      "ipAddress": "string"
+    }
+  ]
+}
+```
+
+**Description:** Retrieves the authenticated user's profile information including basic info, professional details, photo URL, roles, and active sessions.
 
 ---
 
@@ -339,30 +367,15 @@ workplace: string
 photo: file (optional, max 5MB, supported formats: jpg, jpeg, png, gif)
 ```
 
-**Description:** Updates the authenticated user's profile information. The photo field is optional and accepts image files up to 5MB in size. Supported image formats are JPG, JPEG, PNG, and GIF.
-
 **Response:**
-
 ```json
 {
-  "id": "string",
-  "username": "string",
-  "email": "string",
-  "firstName": "string",
-  "lastName": "string",
-  "address": "string",
-  "city": "string",
-  "country": "string",
-  "postalCode": "string",
-  "aboutMe": "string",
-  "work": "string",
-  "workplace": "string",
-  "photo": "/uploads/filename.jpg",
-  "roles": ["string"]
+  "message": "Profile updated successfully",
+  "data": { // Updated profile data }
 }
 ```
 
-**Note:** The photo URL in the response will be relative to the server base URL. To access the photo, prepend the server URL to the photo path.
+**Description:** Updates the user's profile information. All fields are optional. The photo field is optional and supports file uploads with size and format validation.
 
 ---
 
@@ -378,7 +391,14 @@ photo: file (optional, max 5MB, supported formats: jpg, jpeg, png, gif)
 
 **Request Body:** None
 
-**Description:** Deletes the authenticated user's account.
+**Response:**
+```json
+{
+  "message": "Account deleted successfully"
+}
+```
+
+**Description:** Deletes the authenticated user's account. This action is irreversible and will remove all associated data.
 
 ---
 
@@ -397,36 +417,27 @@ photo: file (optional, max 5MB, supported formats: jpg, jpeg, png, gif)
 
 ```json
 {
-  "provider": "string",
+  "provider": "google|github",
   "providerId": "string"
 }
 ```
 
-**Description:** Links an OAuth account to the user's profile.
+**Response:**
+```json
+{
+  "message": "Google account linked successfully"
+}
+```
+
+**Description:** Links an OAuth account (Google or GitHub) to the user's existing account. Prevents linking the same OAuth account to multiple users.
 
 ---
 
-### 21. Get Active Sessions
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/profile/sessions`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Description:** Retrieves the authenticated user's active sessions.
-
----
-
-### 22. Revoke Session
+### 21. Revoke Session
 
 **Method:** DELETE
 
-**URL:** `http://localhost:8080/api/profile/sessions/:sessionToken`
+**URL:** `http://localhost:8080/api/profile/session/{sessionToken}`
 
 **Headers:**
 
@@ -434,7 +445,14 @@ photo: file (optional, max 5MB, supported formats: jpg, jpeg, png, gif)
 
 **Request Body:** None
 
-**Description:** Revokes a specific session for the authenticated user.
+**Response:**
+```json
+{
+  "message": "Session revoked successfully"
+}
+```
+
+**Description:** Revokes a specific active session for the user, logging them out from that device.
 
 ---
 
