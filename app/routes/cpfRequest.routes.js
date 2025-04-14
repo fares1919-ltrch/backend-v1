@@ -8,38 +8,17 @@ const controller = require("../controllers/cpfRequest.controller");
  *     CPFRequest:
  *       type: object
  *       required:
- *         - firstName
- *         - lastName
+ *         - identityNumber
  *         - dateOfBirth
- *         - nationalId
  *         - address
- *         - phone
- *         - email
  *         - purpose
  *       properties:
- *         firstName:
- *           type: string
- *           description: First name of the applicant
- *         lastName:
- *           type: string
- *           description: Last name of the applicant
- *         dateOfBirth:
- *           type: string
- *           format: date
- *           description: Date of birth
- *         nationalId:
- *           type: string
- *           description: National ID number
+ *         identityNumber:
+ *            type: number
+ *            description: identity number 
  *         address:
  *           type: string
  *           description: Residential address
- *         phone:
- *           type: string
- *           description: Contact phone number
- *         email:
- *           type: string
- *           format: email
- *           description: Contact email
  *         purpose:
  *           type: string
  *           description: Purpose of CPF request

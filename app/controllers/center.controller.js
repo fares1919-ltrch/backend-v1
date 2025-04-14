@@ -19,7 +19,9 @@ controller.getAllCenters = async (req, res) => {
       workingHours: {
         start: center.workingHours.monday.start, // Using Monday as default
         end: center.workingHours.monday.end
-      }
+      },
+      lat:center.address.lat,
+      lon:center.address.lon
     }));
 
     res.send({
@@ -27,6 +29,7 @@ controller.getAllCenters = async (req, res) => {
     });
   } catch (err) {
     res.status(500).send({ message: err.message });
+    console.log(err.message)
   }
 };
 
@@ -49,7 +52,7 @@ controller.createCenter = async (req, res) => {
     const { name, address, region, capacity, workingHours } = req.body;
 
     // Validate required fields
-    if (!name || !address || !region || !capacity || !workingHours) {
+    if (!name || !address || !region || !capacity || !workingHours || address.lat === undefined || address.lon===undefined) {
       return res.status(400).send({
         message: "Missing required fields"
       });

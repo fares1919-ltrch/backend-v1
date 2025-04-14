@@ -27,6 +27,8 @@ const controller = require("../controllers/center.controller");
  *             - city
  *             - state
  *             - postalCode
+ *             - lat
+ *             - lon 
  *           properties:
  *             street:
  *               type: string
@@ -36,6 +38,10 @@ const controller = require("../controllers/center.controller");
  *               type: string
  *             postalCode:
  *               type: string
+ *             lat:
+ *               type: number 
+ *             lon:
+ *               type: number
  *         region:
  *           type: string
  *           description: Region where the center is located
