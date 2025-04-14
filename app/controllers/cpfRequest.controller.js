@@ -6,6 +6,9 @@ const CpfCredential = db.cpfCredential;
 // Create a new CPF request
 exports.create = async (req, res) => {
   try {
+
+    console.log(req.body, "data")
+    console.log("userid" , req.body.userId)
     // Check if user already has an active request
     const existingRequest = await CpfRequest.findOne({
       userId: req.userId,
@@ -37,63 +40,64 @@ exports.create = async (req, res) => {
       });
     }
 
-    // Validate birth date
-    if (!req.body.birthDate) {
-      return res.status(400).send({
-        message: "Birth date is required"
-      });
-    }
+    // // Validate birth date
+    // if (!req.body.dateOfBirth) {
+    //   return res.status(400).send({
+    //     message: "Birth date is required"
+    //   });
+    // }
 
-    const birthDate = new Date(req.body.birthDate);
-    if (isNaN(birthDate.getTime())) {
-      return res.status(400).send({
-        message: "Invalid birth date format. Please use YYYY-MM-DD format"
-      });
-    }
+    // const dateOfBirth = new Date(req.body.dateOfBirth);
+    // if (isNaN(dateOfBirth.getTime())) {
+    //   return res.status(400).send({
+    //     message: "Invalid birth date format. Please use YYYY-MM-DD format"
+    //   });
+    // }
 
-    // Check if birth date is not in the future
-    if (birthDate > new Date()) {
-      return res.status(400).send({
-        message: "Birth date cannot be in the future"
-      });
-    }
+    // // Check if birth date is not in the future
+    // if (dateOfBirth > new Date()) {
+    //   return res.status(400).send({
+    //     message: "Birth date cannot be in the future"
+    //   });
+    // }
 
-    // Validate training dates
-    if (!req.body.startDate || !req.body.endDate) {
-      return res.status(400).send({
-        message: "Training start and end dates are required"
-      });
-    }
+    // // Validate training dates
+    // if (!req.body.startDate || !req.body.endDate) {
+    //   return res.status(400).send({
+    //     message: "Training start and end dates are required"
+    //   });
+    // }
 
-    const startDate = new Date(req.body.startDate);
-    const endDate = new Date(req.body.endDate);
+    // const startDate = new Date(req.body.startDate);
+    // const endDate = new Date(req.body.endDate);
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return res.status(400).send({
-        message: "Invalid date format for training dates. Please use ISO format."
-      });
-    }
+    // if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    //   return res.status(400).send({
+    //     message: "Invalid date format for training dates. Please use ISO format."
+    //   });
+    // }
 
-    if (startDate < new Date()) {
-      return res.status(400).send({
-        message: "Training start date cannot be in the past"
-      });
-    }
+    // if (startDate < new Date()) {
+    //   return res.status(400).send({
+    //     message: "Training start date cannot be in the past"
+    //   });
+    // }
 
-    if (endDate <= startDate) {
-      return res.status(400).send({
-        message: "Training end date must be after start date"
-      });
-    }
+    // if (endDate <= startDate) {
+    //   return res.status(400).send({
+    //     message: "Training end date must be after start date"
+    //   });
+    // }
 
     const request = new CpfRequest({
       userId: req.userId,
       identityNumber: req.body.identityNumber,
-      birthDate: birthDate,
-      startDate: req.body.startDate,
-      endDate: req.body.endDate,
-      duration: req.body.duration,
-      cost: req.body.cost,
+      // dateOfBirth: dateOfBirth,
+      address : req.body.address,
+      // startDate: req.body.startDate,
+      // endDate: req.body.endDate,
+      // duration: req.body.duration,
+      // cost: req.body.cost,
       status: "pending",
       officerDecision: {
         status: "pending"

@@ -23,6 +23,14 @@ const Center = mongoose.model(
       postalCode: {
         type: String,
         required: true
+      },
+      lon:{
+        type : Number,
+        required: true
+      },
+      lat:{
+        type : Number,
+        required: true
       }
     },
     region: {

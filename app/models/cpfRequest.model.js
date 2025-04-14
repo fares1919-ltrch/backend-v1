@@ -12,25 +12,25 @@ const cpfRequestSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    birthDate: {
-      type: Date,
-      required: true,
+    address :{
+      type: String,
+      required : true,
     },
-    startDate: {
-      type: Date,
-      required: true,
-    },
-    endDate: {
-      type: Date,
-      required: true,
-    },
-    duration: {
-      type: Number, // in hours
-      required: true,
-    },
+    // startDate: {
+    //   type: Date,
+    //   required: true,
+    // },
+    // endDate: {
+    //   type: Date,
+    //   required: true,
+    // },
+    // duration: {
+    //   type: Number, // in hours
+    //   required: true,
+    // },
     cost: {
-      type: Number,
-      required: true,
+      type: String,
+      default: "7.09 BRL",
     },
     status: {
       type: String,
