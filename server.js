@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieSession = require("cookie-session");
 const dbConfig = require("./app/config/db.config.js");
+const session = require("express-session");
 const passport = require("passport");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
@@ -10,6 +11,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 require("./app/config/passport"); // Load Passport config
 require("dotenv").config();
+const cookieParser = require("cookie-parser");
 
 const app = express();
 
@@ -58,28 +60,35 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Parse cookies
+app.use(cookieParser());
+
 // parse requests of content-type - application/json
 app.use(express.json());
 
 // parse requests of content-type - application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
 
-// Cookie session middleware
+// Session middleware
 app.use(
-  cookieSession({
-    name: "fares-session",
-    keys: [process.env.SESSION_SECRET || "COOKIE_SECRET"],
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: "lax",
-    domain:
-      process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost",
+  session({
+    secret: process.env.SESSION_SECRET || "COOKIE_SECRET",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: "lax",
+      domain:
+        process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost",
+    },
   })
 );
 
 // Initialize Passport
 app.use(passport.initialize());
+app.use(passport.session());
 
 const db = require("./app/models");
 const Role = db.role;

@@ -168,6 +168,12 @@ module.exports = function (app) {
    */
   app.post("/api/auth/signout", controller.signout);
 
+  // Refresh Token Route
+  app.post(
+    "/api/auth/refreshtoken", 
+    refreshTokenController.createRefreshToken
+  );
+
   /**
    * @swagger
    * /api/auth/refreshtoken:
@@ -202,155 +208,58 @@ module.exports = function (app) {
    */
   app.post("/api/auth/refreshtoken", refreshTokenController.createRefreshToken);
 
-  /**
-   * @swagger
-   * /api/auth/google:
-   *   get:
-   *     summary: Initiate Google OAuth authentication
-   *     tags: [Authentication]
-   *     responses:
-   *       302:
-   *         description: Redirects to Google login
-   */
+  // OAuth Routes
   app.get(
-    "/api/auth/google",
-    passport.authenticate("google", { scope: ["profile", "email"] })
+    '/api/auth/google',
+    passport.authenticate('google', { 
+      scope: ['profile', 'email'],
+      session: true
+    })
   );
 
-  /**
-   * @swagger
-   * /api/auth/google/callback:
-   *   get:
-   *     summary: Google OAuth callback URL
-   *     tags: [Authentication]
-   *     responses:
-   *       200:
-   *         description: Authentication successful
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/AuthResponse'
-   *       401:
-   *         description: Authentication failed
-   */
   app.get(
-    "/api/auth/google/callback",
-    passport.authenticate("google", {
-      session: false,
-      failureRedirect: "/api/auth/google/failure",
-    }),
-    (req, res) => {
-      try {
-        const { user, token } = req.user;
-        res.json({ user, token });
-      } catch (error) {
-        res.status(500).json({
-          message: "An error occurred during Google authentication",
-          error: error.message,
-        });
+    '/api/auth/google/callback', 
+    (req, res, next) => {
+      // Check if this is a direct access
+      if (req.query.code) {
+        return passport.authenticate('google', { 
+          failureRedirect: '/api/auth/login?error=oauth_error',
+          session: true
+        })(req, res, next);
       }
-    }
+      // Handle direct access
+      res.status(400).json({
+        message: "Direct access to OAuth callback is not allowed",
+        error: "This endpoint should only be accessed through the OAuth flow"
+      });
+    },
+    controller.googleCallback
   );
 
-  /**
-   * @swagger
-   * /api/auth/google/failure:
-   *   get:
-   *     summary: Google OAuth failure endpoint
-   *     tags: [Authentication]
-   *     responses:
-   *       401:
-   *         description: Google authentication failed
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 message:
-   *                   type: string
-   *                 error:
-   *                   type: string
-   */
-  app.get("/api/auth/google/failure", (req, res) => {
-    res.status(401).json({
-      message: "Google authentication failed",
-      error: req.query.error || "Unknown error",
-    });
-  });
-
-  /**
-   * @swagger
-   * /api/auth/github:
-   *   get:
-   *     summary: Initiate GitHub OAuth authentication
-   *     tags: [Authentication]
-   *     responses:
-   *       302:
-   *         description: Redirects to GitHub login
-   */
   app.get(
-    "/api/auth/github",
-    passport.authenticate("github", { scope: ["user:email"] })
+    '/api/auth/github',
+    passport.authenticate('github', { 
+      scope: ['user:email', 'read:user'],
+      session: true
+    })
   );
 
-  /**
-   * @swagger
-   * /api/auth/github/callback:
-   *   get:
-   *     summary: GitHub OAuth callback URL
-   *     tags: [Authentication]
-   *     responses:
-   *       200:
-   *         description: Authentication successful
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/AuthResponse'
-   *       401:
-   *         description: Authentication failed
-   */
   app.get(
-    "/api/auth/github/callback",
-    passport.authenticate("github", {
-      session: false,
-      failureRedirect: "/api/auth/github/failure",
-    }),
-    (req, res) => {
-      try {
-        const { user, token } = req.user;
-        res.json({ user, token });
-      } catch (error) {
-        res.status(500).json({
-          message: "An error occurred during GitHub authentication",
-          error: error.message,
-        });
+    '/api/auth/github/callback', 
+    (req, res, next) => {
+      // Check if this is a direct access
+      if (req.query.code) {
+        return passport.authenticate('github', { 
+          failureRedirect: '/api/auth/login?error=oauth_error',
+          session: true
+        })(req, res, next);
       }
-    }
+      // Handle direct access
+      res.status(400).json({
+        message: "Direct access to OAuth callback is not allowed",
+        error: "This endpoint should only be accessed through the OAuth flow"
+      });
+    },
+    controller.githubCallback
   );
-
-  /**
-   * @swagger
-   * /api/auth/github/failure:
-   *   get:
-   *     summary: GitHub OAuth failure endpoint
-   *     tags: [Authentication]
-   *     responses:
-   *       401:
-   *         description: GitHub authentication failed
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 message:
-   *                   type: string
-   *                 error:
-   *                   type: string
-   */
-  app.get("/api/auth/github/failure", (req, res) => {
-    res.status(401).json({
-      message: "GitHub authentication failed",
-      error: req.query.error || "Unknown error",
-    });
-  });
 };

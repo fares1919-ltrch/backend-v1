@@ -107,10 +107,10 @@ exports.signin = async (req, res) => {
     const token = jwt.sign({ id: user.id }, config.jwtSecret, {
       algorithm: "HS256",
       allowInsecureKeySizes: true,
-      expiresIn: config.jwtExpiration, // 1 hour
+      expiresIn: "24h", // Match cookie duration
     });
 
-    // Generate refresh token
+    // Generate refresh token with longer expiration
     let refreshToken = await RefreshToken.createToken(user);
 
     // Generate authorities from roles
@@ -146,6 +146,14 @@ exports.signin = async (req, res) => {
         process.env.NODE_ENV === "production"
           ? process.env.DOMAIN
           : "localhost",
+    });
+
+    // Set secure cookie with refresh token
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     // Send response
@@ -187,5 +195,163 @@ exports.signout = async (req, res) => {
     res
       .status(500)
       .json({ message: err.message || "An error occurred during signout" });
+  }
+};
+
+// Google OAuth Callback
+exports.googleCallback = async (req, res) => {
+  try {
+    // The user object is already populated by passport
+    const user = req.user;
+    const token = jwt.sign({ id: user._id }, config.jwtSecret, {
+      expiresIn: "24h", // Match cookie duration
+      algorithm: "HS256",
+    });
+
+    // Ensure user has the correct roles and populate them
+    if (!user.roles || user.roles.length === 0) {
+      const userRole = await Role.findOne({ name: "user" });
+      if (!userRole) {
+        throw new Error("Default user role not found");
+      }
+      user.roles = [userRole._id];
+      await user.save();
+    }
+
+    // Populate roles for the user
+    await user.populate("roles");
+
+    // Set session data with populated roles
+    req.session.token = token;
+    req.session.userId = user._id;
+    req.session.username = user.username;
+    req.session.roles = user.roles.map((role) => `ROLE_${role.name.toUpperCase()}`);
+    req.session.lastActive = new Date();
+
+    // Set secure cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      domain:
+        process.env.NODE_ENV === "production"
+          ? process.env.DOMAIN
+          : "localhost",
+    });
+
+    // Generate refresh token with longer expiration
+    let refreshToken = await RefreshToken.createToken(user);
+
+    // Set secure cookie with refresh token
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Redirect to appropriate dashboard based on roles
+    const frontendUrl = process.env.NODE_ENV === "production"
+      ? process.env.FRONTEND_URL
+      : "http://localhost:4200";
+
+    const roles = req.session.roles;
+    if (roles.includes("ROLE_USER")) {
+      return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
+    } else if (roles.includes("ROLE_MANAGER")) {
+      return res.redirect(`${frontendUrl}/dashboard/manager?token=${token}`);
+    } else if (roles.includes("ROLE_OFFICER")) {
+      return res.redirect(`${frontendUrl}/dashboard/officer?token=${token}`);
+    }
+
+    // Default to citizen dashboard if role is not recognized
+    return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
+  } catch (err) {
+    console.error("Google OAuth callback error:", err);
+    const loginErrorUrl = process.env.NODE_ENV === "production"
+      ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error`
+      : "http://localhost:4200/auth/login?error=oauth_error";
+
+    return res.redirect(loginErrorUrl);
+  }
+};
+
+// GitHub OAuth Callback
+exports.githubCallback = async (req, res) => {
+  try {
+    // The user object is already populated by passport
+    const user = req.user;
+    const token = jwt.sign({ id: user._id }, config.jwtSecret, {
+      expiresIn: "24h", // Match cookie duration
+      algorithm: "HS256",
+    });
+
+    // Ensure user has the correct roles and populate them
+    if (!user.roles || user.roles.length === 0) {
+      const userRole = await Role.findOne({ name: "user" });
+      if (!userRole) {
+        throw new Error("Default user role not found");
+      }
+      user.roles = [userRole._id];
+      await user.save();
+    }
+
+    // Populate roles for the user
+    await user.populate("roles");
+
+    // Set session data with populated roles
+    req.session.token = token;
+    req.session.userId = user._id;
+    req.session.username = user.username;
+    req.session.roles = user.roles.map((role) => `ROLE_${role.name.toUpperCase()}`);
+    req.session.lastActive = new Date();
+
+    // Set secure cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      domain:
+        process.env.NODE_ENV === "production"
+          ? process.env.DOMAIN
+          : "localhost",
+    });
+
+    // Generate refresh token with longer expiration
+    let refreshToken = await RefreshToken.createToken(user);
+
+    // Set secure cookie with refresh token
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Redirect to appropriate dashboard based on roles
+    const frontendUrl = process.env.NODE_ENV === "production"
+      ? process.env.FRONTEND_URL
+      : "http://localhost:4200";
+
+    const roles = req.session.roles;
+    if (roles.includes("ROLE_USER")) {
+      return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
+    } else if (roles.includes("ROLE_MANAGER")) {
+      return res.redirect(`${frontendUrl}/dashboard/manager?token=${token}`);
+    } else if (roles.includes("ROLE_OFFICER")) {
+      return res.redirect(`${frontendUrl}/dashboard/officer?token=${token}`);
+    }
+
+    // Default to citizen dashboard if role is not recognized
+    return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
+  } catch (err) {
+    console.error("GitHub OAuth callback error:", err);
+    const loginErrorUrl = process.env.NODE_ENV === "production"
+      ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error`
+      : "http://localhost:4200/auth/login?error=oauth_error";
+
+    return res.redirect(loginErrorUrl);
   }
 };

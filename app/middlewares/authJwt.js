@@ -14,8 +14,10 @@ const catchError = (err, res) => {
 };
 
 const verifyToken = (req, res, next) => {
-  // Prioritize header token over session token for security
-  const token = req.headers["x-access-token"] || req.session.token;
+  // Check for token in headers, cookies, or session with proper null checks
+  const token = req.headers["x-access-token"] || 
+               (req.cookies ? req.cookies.token : null) || 
+               (req.session ? req.session.token : null);
 
   if (!token) {
     return res.status(403).json({ message: "No token provided!" });
@@ -24,7 +26,21 @@ const verifyToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
     req.userId = decoded.id;
-    
+
+    // Refresh token if it's about to expire (within 5 minutes)
+    if (decoded.exp - Date.now()/1000 < 300) {
+      const newToken = jwt.sign({ id: decoded.id }, config.jwtSecret, {
+        expiresIn: "24h"
+      });
+      res.cookie("token", newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000
+      });
+      req.session.token = newToken;
+    }
+
     // Ensure userId is a valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(req.userId)) {
       return res.status(401).json({ message: "Invalid token" });
@@ -92,7 +108,7 @@ const isManagerOrOfficer = async (req, res, next) => {
   try {
     const user = await User.findById(req.userId).populate("roles");
     const roles = user.roles.map(role => role.name);
-    
+
     if (roles.includes("manager") || roles.includes("officer")) {
       next();
       return;

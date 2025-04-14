@@ -20,16 +20,14 @@ exports.createRefreshToken = async (req, res) => {
         .json({ message: "Refresh token is not in database!" });
     }
 
-    if (RefreshToken.verifyExpiration(refreshToken)) {
-      await RefreshToken.findByIdAndRemove(refreshToken._id, {
-        useFindAndModify: false,
-      });
+    if (RefreshToken.isExpired(refreshToken)) {
+      await RefreshToken.findByIdAndRemove(refreshToken._id);
       return res.status(403).json({
         message: "Refresh token was expired. Please make a new signin request",
       });
     }
 
-    let newAccessToken = jwt.sign({ id: refreshToken.user }, config.secret, {
+    const newAccessToken = jwt.sign({ id: refreshToken.user._id }, config.jwtSecret, {
       expiresIn: config.jwtExpiration,
     });
 
@@ -40,4 +38,8 @@ exports.createRefreshToken = async (req, res) => {
   } catch (err) {
     return res.status(500).send({ message: err });
   }
+};
+
+RefreshToken.isExpired = (token) => {
+  return token.expiryDate.getTime() < new Date().getTime();
 };
