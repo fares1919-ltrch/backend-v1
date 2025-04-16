@@ -94,6 +94,20 @@ exports.getUserAppointment = async (req, res) => {
     res.status(500).send({ message: err.message });
   }
 };
+// Get appointment by CPF request ID
+exports.getAppointmentByRequestId = async (req, res) => {
+  try {
+    const appointment = await Appointment.findOne({ cpfRequestId: req.params.cpfRequestId })
+      .populate("userId", "username email firstName lastName")
+      .populate("officerId", "username email firstName lastName");
+    if (!appointment) {
+      return res.status(404).send({ message: "No appointment found for this CPF request" });
+    }
+    res.send(appointment);
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
 
 // Get available time slots
 exports.getAvailableSlots = async (req, res) => {

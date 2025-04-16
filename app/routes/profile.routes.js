@@ -108,6 +108,47 @@ module.exports = function(app) {
 
   /**
    * @swagger
+   * /api/profile/location:
+   *   patch:
+   *     summary: Update user's location with coordinates
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               address:
+   *                 type: string
+   *                 description: User's address from map selection
+   *               coordinates:
+   *                 type: object
+   *                 properties:
+   *                   lat:
+   *                     type: number
+   *                     description: Latitude coordinate
+   *                   lon:
+   *                     type: number
+   *                     description: Longitude coordinate
+   *     responses:
+   *       200:
+   *         description: Location updated successfully
+   *       400:
+   *         description: Invalid coordinates
+   *       403:
+   *         description: Not authorized
+   */
+  app.patch(
+    "/api/profile/location",
+    [authJwt.verifyToken],
+    controller.updateLocation
+  );
+
+  /**
+   * @swagger
    * /api/profile:
    *   delete:
    *     summary: Delete current user's profile
@@ -223,5 +264,84 @@ module.exports = function(app) {
     "/api/profile",
     [authJwt.verifyToken, upload.single("photo")],
     controller.updateProfile
+  );
+
+  /**
+   * @swagger
+   * /api/profile/location:
+   *   patch:
+   *     summary: Update user's location with coordinates
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               address:
+   *                 type: string
+   *                 description: User's address from map selection
+   *               coordinates:
+   *                 type: object
+   *                 properties:
+   *                   lat:
+   *                     type: number
+   *                     description: Latitude coordinate
+   *                   lon:
+   *                     type: number
+   *                     description: Longitude coordinate
+   *     responses:
+   *       200:
+   *         description: Location updated successfully
+   *       400:
+   *         description: Invalid coordinates
+   *       403:
+   *         description: Not authorized
+   */
+  app.patch(
+    "/api/profile/location",
+    [authJwt.verifyToken],
+    controller.updateLocation
+  );
+
+  /**
+   * @swagger
+   * /api/profile/validate-cpf:
+   *   get:
+   *     summary: Validate if user profile is complete for CPF request
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Profile validation result
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 isComplete:
+   *                   type: boolean
+   *                   description: Whether profile is complete for CPF request
+   *                 missingFields:
+   *                   type: array
+   *                   items:
+   *                     type: string
+   *                   description: List of missing required fields
+   *                 message:
+   *                   type: string
+   *                   description: Status message
+   *       403:
+   *         description: Not authorized
+   *       404:
+   *         description: User not found
+   */
+  app.get(
+    "/api/profile/validate-cpf",
+    [authJwt.verifyToken],
+    controller.validateProfileForCpf
   );
 };

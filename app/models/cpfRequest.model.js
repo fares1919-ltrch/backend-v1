@@ -12,9 +12,14 @@ const cpfRequestSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    address :{
-      type: String,
-      required : true,
+    address: {
+      street: { type: String },
+      city: { type: String },
+      state: { type: String },
+      postalCode: { type: String },
+      country: { type: String },
+      lat: { type: Number, required: true },
+      lon: { type: Number, required: true }
     },
     // startDate: {
     //   type: Date,
@@ -51,6 +56,11 @@ const cpfRequestSchema = new mongoose.Schema(
       }
     },
     appointmentDate: Date,
+    centerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Center",
+      required: true
+    },
   },
   {
     timestamps: true

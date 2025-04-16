@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { TokenExpiredError } = jwt;
 const config = require("../config/auth.config.js");
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const User = require("../models/user.model");
 
 const catchError = (err, res) => {
@@ -14,10 +14,16 @@ const catchError = (err, res) => {
 };
 
 const verifyToken = (req, res, next) => {
-  // Check for token in headers, cookies, or session with proper null checks
-  const token = req.headers["x-access-token"] || 
-               (req.cookies ? req.cookies.token : null) || 
-               (req.session ? req.session.token : null);
+  // Check for token in Authorization header first
+  let token = req.headers.authorization?.split(" ")[1];
+
+  // If not in Authorization header, check other locations
+  if (!token) {
+    token =
+      req.headers["x-access-token"] ||
+      (req.cookies ? req.cookies.token : null) ||
+      (req.session ? req.session.token : null);
+  }
 
   if (!token) {
     return res.status(403).json({ message: "No token provided!" });
@@ -28,15 +34,15 @@ const verifyToken = (req, res, next) => {
     req.userId = decoded.id;
 
     // Refresh token if it's about to expire (within 5 minutes)
-    if (decoded.exp - Date.now()/1000 < 300) {
+    if (decoded.exp - Date.now() / 1000 < 300) {
       const newToken = jwt.sign({ id: decoded.id }, config.jwtSecret, {
-        expiresIn: "24h"
+        expiresIn: "24h",
       });
       res.cookie("token", newToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 24 * 60 * 60 * 1000,
       });
       req.session.token = newToken;
     }
@@ -91,6 +97,7 @@ const isOfficer = async (req, res, next) => {
     const isOfficerRole = user.roles.some((role) => role.name === "officer");
 
     if (isOfficerRole) {
+      req.isOfficer = true;
       return next();
     }
 
@@ -107,7 +114,7 @@ const isOfficer = async (req, res, next) => {
 const isManagerOrOfficer = async (req, res, next) => {
   try {
     const user = await User.findById(req.userId).populate("roles");
-    const roles = user.roles.map(role => role.name);
+    const roles = user.roles.map((role) => role.name);
 
     if (roles.includes("manager") || roles.includes("officer")) {
       next();

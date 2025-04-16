@@ -28,12 +28,11 @@ exports.updateProfile = async (req, res) => {
       "firstName",
       "lastName",
       "address",
-      "city",
-      "country",
-      "postalCode",
       "aboutMe",
       "work",
       "workplace",
+      "birthDate",
+      "identityNumber"
     ];
 
     const updates = Object.keys(req.body)
@@ -42,6 +41,30 @@ exports.updateProfile = async (req, res) => {
         obj[key] = req.body[key];
         return obj;
       }, {});
+
+    // Validate address structure if present
+    if (updates.address) {
+      const requiredFields = [
+        "street",
+        "city",
+        "state",
+        "postalCode",
+        "country",
+        "lat",
+        "lon"
+      ];
+      for (const field of requiredFields) {
+        if (
+          !updates.address.hasOwnProperty(field) ||
+          updates.address[field] === undefined ||
+          updates.address[field] === ""
+        ) {
+          return res.status(400).json({
+            message: `Missing address field: ${field}`
+          });
+        }
+      }
+    }
 
     // Handle photo upload if present
     if (req.file) {
@@ -151,6 +174,89 @@ exports.revokeSession = async (req, res) => {
     await user.save();
 
     res.status(200).json({ message: "Session revoked successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Update user location
+exports.updateLocation = async (req, res) => {
+  try {
+    const { address, coordinates } = req.body;
+
+    if (!coordinates || !coordinates.lat || !coordinates.lon) {
+      return res.status(400).json({ message: "Valid coordinates are required" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      {
+        $set: {
+          location: {
+            lat: coordinates.lat,
+            lon: coordinates.lon
+          },
+          address: address || ""
+        }
+      },
+      { new: true, runValidators: true }
+    ).select("-password -resetPasswordToken -resetPasswordExpires");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Validate profile completeness for CPF request
+exports.validateProfileForCpf = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Define required fields for CPF request
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "birthDate",
+      "identityNumber"
+    ];
+
+    // Check which fields are missing
+    const missingFields = requiredFields.filter(field => {
+      return !user[field];
+    });
+
+    // Check if location is missing, but track it separately
+    const locationMissing = !user.location || !user.location.lat || !user.location.lon;
+
+    // We'll use this for the complete check
+    // If the user is on the CPF request page, we don't consider location as a blocking issue
+    // since they can select it directly on the map
+    const isComplete = missingFields.length === 0;
+
+    // Don't include location in the missing fields message
+    // We'll handle it separately with the locationNeeded flag
+    const messageFields = [...missingFields];
+    const locationNeeded = locationMissing;
+
+    res.status(200).json({
+      isComplete,
+      missingFields: messageFields,
+      locationNeeded: locationNeeded,
+      message: isComplete
+        ? "Profile is complete for CPF request"
+        : locationNeeded && messageFields.length === 0
+          ? "Please select your location on the map"
+          : `Profile is incomplete. Missing fields: ${messageFields.join(", ")}`
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

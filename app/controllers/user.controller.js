@@ -33,7 +33,7 @@ exports.getAllUsers = async (req, res) => {
     }
 
     const users = await User.find(query)
-      .select('-password')
+      .select("-password")
       .skip(skip)
       .limit(limit);
 
@@ -44,7 +44,7 @@ exports.getAllUsers = async (req, res) => {
       users,
       currentPage: page,
       totalPages,
-      totalUsers: total
+      totalUsers: total,
     });
   } catch (err) {
     res.status(500).send({ message: err.message });
@@ -53,7 +53,7 @@ exports.getAllUsers = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id).select("-password");
     if (!user) {
       return res.status(404).send({ message: "User not found" });
     }
@@ -67,7 +67,7 @@ exports.updateUserStatus = async (req, res) => {
   try {
     const { status, reason } = req.body;
     const user = await User.findById(req.params.id);
-    
+
     if (!user) {
       return res.status(404).send({ message: "User not found" });
     }
@@ -88,7 +88,7 @@ exports.updateUserRole = async (req, res) => {
   try {
     const { roles } = req.body;
     const user = await User.findById(req.params.id);
-    
+
     if (!user) {
       return res.status(404).send({ message: "User not found" });
     }
@@ -104,7 +104,7 @@ exports.updateUserRole = async (req, res) => {
 
 exports.getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password');
+    const user = await User.findById(req.userId).select("-password");
     if (!user) {
       return res.status(404).send({ message: "User not found" });
     }
@@ -124,14 +124,14 @@ exports.updateUserProfile = async (req, res) => {
     }
 
     if (email) {
-      const emailExists = await User.findOne({ 
-        email, 
-        _id: { $ne: req.userId } 
+      const emailExists = await User.findOne({
+        email,
+        _id: { $ne: req.userId },
       });
-      
+
       if (emailExists) {
-        return res.status(400).send({ 
-          message: "Email is already in use" 
+        return res.status(400).send({
+          message: "Email is already in use",
         });
       }
       user.email = email;
@@ -144,8 +144,8 @@ exports.updateUserProfile = async (req, res) => {
       );
 
       if (!validPassword) {
-        return res.status(400).send({ 
-          message: "Current password is incorrect" 
+        return res.status(400).send({
+          message: "Current password is incorrect",
         });
       }
 
@@ -156,5 +156,16 @@ exports.updateUserProfile = async (req, res) => {
     res.send({ message: "Profile updated successfully" });
   } catch (err) {
     res.status(500).send({ message: err.message });
+  }
+};
+
+exports.checkIdentityNumber = async (req, res) => {
+  try {
+    const user = await User.findOne({
+      identityNumber: req.params.identityNumber,
+    });
+    res.json({ isAvailable: !user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

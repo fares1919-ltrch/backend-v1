@@ -40,68 +40,27 @@ exports.create = async (req, res) => {
       });
     }
 
-    // // Validate birth date
-    // if (!req.body.dateOfBirth) {
-    //   return res.status(400).send({
-    //     message: "Birth date is required"
-    //   });
-    // }
+    // Validate address structure
+    const address = req.body.address;
+    if (!address || address.lat === undefined || address.lon === undefined) {
+      return res.status(400).send({ message: `Missing address field: lat or lon` });
+    }
 
-    // const dateOfBirth = new Date(req.body.dateOfBirth);
-    // if (isNaN(dateOfBirth.getTime())) {
-    //   return res.status(400).send({
-    //     message: "Invalid birth date format. Please use YYYY-MM-DD format"
-    //   });
-    // }
-
-    // // Check if birth date is not in the future
-    // if (dateOfBirth > new Date()) {
-    //   return res.status(400).send({
-    //     message: "Birth date cannot be in the future"
-    //   });
-    // }
-
-    // // Validate training dates
-    // if (!req.body.startDate || !req.body.endDate) {
-    //   return res.status(400).send({
-    //     message: "Training start and end dates are required"
-    //   });
-    // }
-
-    // const startDate = new Date(req.body.startDate);
-    // const endDate = new Date(req.body.endDate);
-
-    // if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    //   return res.status(400).send({
-    //     message: "Invalid date format for training dates. Please use ISO format."
-    //   });
-    // }
-
-    // if (startDate < new Date()) {
-    //   return res.status(400).send({
-    //     message: "Training start date cannot be in the past"
-    //   });
-    // }
-
-    // if (endDate <= startDate) {
-    //   return res.status(400).send({
-    //     message: "Training end date must be after start date"
-    //   });
-    // }
+    // Validate centerId
+    if (!req.body.centerId) {
+      return res.status(400).send({ message: 'Missing centerId in request' });
+    }
 
     const request = new CpfRequest({
       userId: req.userId,
       identityNumber: req.body.identityNumber,
-      // dateOfBirth: dateOfBirth,
-      address : req.body.address,
-      // startDate: req.body.startDate,
-      // endDate: req.body.endDate,
-      // duration: req.body.duration,
-      // cost: req.body.cost,
+      address: address,
+      cost: req.body.cost,
       status: "pending",
       officerDecision: {
         status: "pending"
-      }
+      },
+      centerId: req.body.centerId
     });
 
     const savedRequest = await request.save();
@@ -118,7 +77,11 @@ exports.findAll = async (req, res) => {
     const query = {};
 
     // Apply filters
-    if (status) query.status = status;
+    if (status) {
+      // Allow multiple statuses (comma-separated)
+      const statuses = status.split(',');
+      query.status = { $in: statuses };
+    }
     if (startDate || endDate) {
       query.startDate = {};
       if (startDate) query.startDate.$gte = new Date(startDate);
@@ -136,11 +99,23 @@ exports.findAll = async (req, res) => {
       query.userId = req.userId;
     }
 
-    const requests = await CpfRequest.find(query)
-      .populate("userId", "username email firstName lastName")
-      .sort({ createdAt: -1 });
+    // Use mongoose-paginate-v2 for consistent pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const options = {
+      page,
+      limit,
+      sort: { createdAt: -1 },
+      populate: { path: "userId", select: "username email firstName lastName" }
+    };
+    const result = await CpfRequest.paginate(query, options);
 
-    res.send(requests);
+    res.send({
+      requests: result.docs,
+      totalPages: result.totalPages,
+      currentPage: result.page,
+      totalItems: result.totalDocs
+    });
   } catch (err) {
     res.status(500).send({ message: err.message });
   }
@@ -194,10 +169,44 @@ exports.updateDecision = async (req, res) => {
       return res.status(404).send({ message: "Request not found" });
     }
 
-    if (request.status !== "pending") {
-      return res.status(400).send({ message: "Can only update pending requests" });
+    // Only officers can set status to 'completed', and only if appointment is completed
+    if (req.body.status === 'completed') {
+      // Officer check is already performed above
+      // Check if related appointment exists and is completed
+      const appointment = await require('../models').appointment.findOne({ cpfRequestId: request._id });
+      if (!appointment || appointment.status !== 'completed') {
+        return res.status(400).send({ message: "Cannot complete request until appointment is completed." });
+      }
+    }
+    if (req.body.status === 'approved') {
+      const Appointment = require('../models').appointment;
+      // Check if appointment already exists for this CPF request
+      let appointment = await Appointment.findOne({ cpfRequestId: request._id });
+      if (!appointment) {
+        // You may want to set appointmentDate and location based on your business rules or request data
+        appointment = new Appointment({
+          userId: request.userId,
+          officerId: req.userId,
+          cpfRequestId: request._id,
+          appointmentDate: new Date(), // or req.body.appointmentDate if provided
+          status: "scheduled",
+          notes: "Auto-created upon approval",
+          location: request.centerId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        await appointment.save();
+      }
     }
 
+    // Prevent marking CPF request as completed unless appointment is completed
+    if (req.body.status === 'completed') {
+      const Appointment = require('../models').appointment;
+      const appointment = await Appointment.findOne({ cpfRequestId: request._id });
+      if (!appointment || appointment.status !== 'completed') {
+        return res.status(400).send({ message: "Cannot complete CPF request until the associated appointment is completed." });
+      }
+    }
     // No need to validate appointment date here anymore
     request.status = req.body.status;
     request.officerDecision = {

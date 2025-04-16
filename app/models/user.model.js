@@ -4,10 +4,9 @@ const User = mongoose.model(
   "User",
   new mongoose.Schema(
     {
-      firstanme: String,
-      lastname: String,
-      email: String,
-      password: String,
+      username: { type: String, required: true },
+      email: { type: String, required: true },
+      password: { type: String, required: true },
       resetPasswordToken: String,
       resetPasswordExpires: Date,
       provider: {
@@ -26,14 +25,25 @@ const User = mongoose.model(
       // Profile fields
       firstName: String,
       lastName: String,
-      address: String,
-      city: String,
-      country: String,
-      postalCode: String,
+      address: {
+        street: { type: String },
+        city: { type: String },
+        state: { type: String },
+        postalCode: { type: String },
+        country: { type: String },
+        lat: { type: Number },
+        lon: { type: Number },
+      },
       aboutMe: String,
       work: String,
       workplace: String,
       photo: String,
+      birthDate: Date,
+      identityNumber: {
+        type: Number,
+        unique: true,
+        sparse: true,
+      },
       // Session management
       activeSessions: [
         {

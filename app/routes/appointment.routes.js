@@ -213,6 +213,34 @@ module.exports = function(app) {
 
   /**
    * @swagger
+   * /api/appointments/by-request/{cpfRequestId}:
+   *   get:
+   *     summary: Get appointment by CPF request ID
+   *     tags: [Appointments]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: cpfRequestId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Appointment details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Appointment'
+   */
+  app.get(
+    "/api/appointments/by-request/:cpfRequestId",
+    [authJwt.verifyToken],
+    controller.getAppointmentByRequestId
+  );
+
+  /**
+   * @swagger
    * /api/appointments/{id}/reschedule:
    *   put:
    *     summary: Reschedule appointment
@@ -245,7 +273,7 @@ module.exports = function(app) {
    */
   app.put(
     "/api/appointments/:id/reschedule",
-    [authJwt.verifyToken],
+    [authJwt.verifyToken, authJwt.isOfficer],
     controller.rescheduleAppointment
   );
 

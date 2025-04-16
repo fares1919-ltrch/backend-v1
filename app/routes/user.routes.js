@@ -34,12 +34,9 @@ const controller = require("../controllers/user.controller");
  *           format: date-time
  */
 
-module.exports = function(app) {
-  app.use(function(req, res, next) {
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, Content-Type, Accept"
-    );
+module.exports = function (app) {
+  app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept");
     next();
   });
 
@@ -371,5 +368,26 @@ module.exports = function(app) {
     "/api/users/profile",
     [authJwt.verifyToken],
     controller.updateUserProfile
+  );
+
+  /**
+   * @swagger
+   * /api/users/check-identity/{identityNumber}:
+   *   get:
+   *     summary: Check if identity number is available
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: identityNumber
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Identity number availability status
+   */
+  app.get(
+    "/api/users/check-identity/:identityNumber",
+    controller.checkIdentityNumber
   );
 };

@@ -25,6 +25,8 @@ exports.signup = async (req, res) => {
       work: req.body.work,
       workplace: req.body.workplace,
       photo: req.body.photo,
+      identityNumber: req.body.identityNumber,
+      birthDate: req.body.birthDate,
     });
 
     // Handle role assignment
