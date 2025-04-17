@@ -15,7 +15,9 @@ The core center model includes the following fields:
     street: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
-    postalCode: { type: String, required: true }
+    postalCode: { type: String, required: true },
+    lon: { type: Number, required: true },
+    lat: { type: Number, required: true }
   },
   region: { type: String, required: true },
   capacity: {
@@ -54,11 +56,11 @@ The core center model includes the following fields:
 ### 1. Center Management
 
 #### GET /api/centers
-- **Description**: Get all active centers
+- **Description**: Get all centers
 - **Response**: List of centers with basic information
 
 #### GET /api/centers/:id
-- **Description**: Get center details by ID
+- **Description**: Get center by ID
 - **Parameters**:
   - `id`: Center ID
 - **Response**: Detailed center information

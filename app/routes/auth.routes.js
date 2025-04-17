@@ -219,20 +219,10 @@ module.exports = function (app) {
 
   app.get(
     '/api/auth/google/callback', 
-    (req, res, next) => {
-      // Check if this is a direct access
-      if (req.query.code) {
-        return passport.authenticate('google', { 
-          failureRedirect: '/api/auth/login?error=oauth_error',
-          session: true
-        })(req, res, next);
-      }
-      // Handle direct access
-      res.status(400).json({
-        message: "Direct access to OAuth callback is not allowed",
-        error: "This endpoint should only be accessed through the OAuth flow"
-      });
-    },
+    passport.authenticate('google', { 
+      failureRedirect: '/api/auth/login?error=oauth_error',
+      session: true
+    }),
     controller.googleCallback
   );
 
@@ -246,20 +236,23 @@ module.exports = function (app) {
 
   app.get(
     '/api/auth/github/callback', 
-    (req, res, next) => {
-      // Check if this is a direct access
-      if (req.query.code) {
-        return passport.authenticate('github', { 
-          failureRedirect: '/api/auth/login?error=oauth_error',
-          session: true
-        })(req, res, next);
-      }
-      // Handle direct access
-      res.status(400).json({
-        message: "Direct access to OAuth callback is not allowed",
-        error: "This endpoint should only be accessed through the OAuth flow"
-      });
-    },
+    passport.authenticate('github', { 
+      failureRedirect: '/api/auth/login?error=oauth_error',
+      session: true
+    }),
     controller.githubCallback
   );
+
+  // Session check endpoint
+  app.get('/api/auth/session', (req, res) => {
+    if (req.session && req.session.userId) {
+      res.json({
+        id: req.session.userId,
+        username: req.session.username,
+        roles: req.session.roles
+      });
+    } else {
+      res.status(401).json({ message: 'No active session' });
+    }
+  });
 };

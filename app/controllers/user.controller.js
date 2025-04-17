@@ -2,6 +2,10 @@ const db = require("../models");
 const User = db.user;
 const bcrypt = require("bcryptjs");
 
+/************************************************
+ * ROLE-BASED ACCESS CONTROL
+ * Content access methods for different roles
+ ************************************************/
 exports.allAccess = (req, res) => {
   res.status(200).send("Public Content.");
 };
@@ -18,6 +22,10 @@ exports.officerBoard = (req, res) => {
   res.status(200).send("Officer Content.");
 };
 
+/************************************************
+ * USER MANAGEMENT (ADMIN FUNCTIONS)
+ * Methods for getting and managing all users
+ ************************************************/
 exports.getAllUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -102,6 +110,10 @@ exports.updateUserRole = async (req, res) => {
   }
 };
 
+/************************************************
+ * USER PROFILE MANAGEMENT
+ * Methods for users to manage their own profile
+ ************************************************/
 exports.getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-password");
@@ -159,6 +171,10 @@ exports.updateUserProfile = async (req, res) => {
   }
 };
 
+/************************************************
+ * VERIFICATION UTILITIES
+ * Helper methods for verification processes
+ ************************************************/
 exports.checkIdentityNumber = async (req, res) => {
   try {
     const user = await User.findOne({

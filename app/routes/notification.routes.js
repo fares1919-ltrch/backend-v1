@@ -10,26 +10,65 @@ const controller = require("../controllers/notification.controller");
  *       properties:
  *         id:
  *           type: string
- *           description: Notification ID
+ *           description: Unique notification identifier
  *         userId:
  *           type: string
  *           description: ID of the user this notification belongs to
  *         type:
  *           type: string
  *           enum: [info, warning, success, error]
- *           description: Type of notification
+ *           description: Type of notification for styling and categorization
  *         title:
  *           type: string
- *           description: Notification title
+ *           description: Short notification title/headline
  *         message:
  *           type: string
- *           description: Notification message
+ *           description: Detailed notification message content
  *         read:
  *           type: boolean
- *           description: Whether the notification has been read
+ *           description: Whether the notification has been read by the user
+ *           default: false
+ *         priority:
+ *           type: string
+ *           enum: [low, medium, high]
+ *           description: Priority level of the notification
+ *           default: medium
+ *         relatedTo:
+ *           type: object
+ *           description: Object containing information about related entities
+ *           properties:
+ *             entityType:
+ *               type: string
+ *               enum: [appointment, cpfRequest, biometricData, center]
+ *               description: Type of entity this notification relates to
+ *             entityId:
+ *               type: string
+ *               description: ID of the related entity
+ *         actions:
+ *           type: array
+ *           description: Available actions for this notification
+ *           items:
+ *             type: object
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 description: Text to display for the action
+ *               url:
+ *                 type: string
+ *                 description: URL to navigate to when action is clicked
  *         createdAt:
  *           type: string
  *           format: date-time
+ *           description: When the notification was created
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the notification was last updated
+ *       required:
+ *         - userId
+ *         - type
+ *         - title
+ *         - message
  */
 
 module.exports = function(app) {

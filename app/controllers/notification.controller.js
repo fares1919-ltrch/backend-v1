@@ -2,6 +2,10 @@ const db = require("../models");
 const User = db.user;
 const Notification = db.notification;
 
+/************************************************
+ * NOTIFICATION CREATION
+ * Send notifications to users
+ ************************************************/
 // Send notification to user
 exports.sendNotification = async (req, res) => {
   try {
@@ -26,6 +30,10 @@ exports.sendNotification = async (req, res) => {
   }
 };
 
+/************************************************
+ * NOTIFICATION RETRIEVAL
+ * Get notifications with filtering
+ ************************************************/
 // Get user's notifications with pagination
 exports.getNotifications = async (req, res) => {
   try {
@@ -57,6 +65,24 @@ exports.getNotifications = async (req, res) => {
   }
 };
 
+// Get unread notifications count
+exports.getUnreadCount = async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({
+      userId: req.userId,
+      read: false
+    });
+
+    res.json({ count });
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+/************************************************
+ * NOTIFICATION MANAGEMENT
+ * Update notification status (read/unread)
+ ************************************************/
 // Mark notification as read
 exports.markAsRead = async (req, res) => {
   try {
@@ -87,20 +113,6 @@ exports.markAllAsRead = async (req, res) => {
     );
 
     res.send({ message: "All notifications marked as read" });
-  } catch (err) {
-    res.status(500).send({ message: err.message });
-  }
-};
-
-// Get unread notifications count
-exports.getUnreadCount = async (req, res) => {
-  try {
-    const count = await Notification.countDocuments({
-      userId: req.userId,
-      read: false
-    });
-
-    res.json({ count });
   } catch (err) {
     res.status(500).send({ message: err.message });
   }

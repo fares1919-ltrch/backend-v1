@@ -9,31 +9,58 @@ const controller = require("../controllers/appointment.controller");
  *       type: object
  *       required:
  *         - userId
- *         - centerId
- *         - dateTime
- *         - type
+ *         - officerId
+ *         - cpfRequestId
+ *         - appointmentDate
+ *         - location
  *       properties:
  *         userId:
  *           type: string
- *           description: The ID of the user
- *         centerId:
+ *           description: The ID of the user who has the appointment
+ *         officerId:
  *           type: string
- *           description: The ID of the center
- *         dateTime:
+ *           description: The ID of the officer assigned to the appointment
+ *         cpfRequestId:
+ *           type: string
+ *           description: The ID of the associated CPF request
+ *         appointmentDate:
  *           type: string
  *           format: date-time
  *           description: The date and time of the appointment
- *         type:
- *           type: string
- *           enum: [CPF_ISSUANCE, CPF_RENEWAL]
- *           description: The type of appointment
  *         status:
  *           type: string
  *           enum: [scheduled, completed, cancelled, missed]
  *           default: scheduled
+ *           description: Current status of the appointment
  *         notes:
  *           type: string
  *           description: Additional notes for the appointment
+ *         location:
+ *           type: string
+ *           description: ID of the center where the appointment will take place
+ *         checkInTime:
+ *           type: string
+ *           format: date-time
+ *           description: When the user checked in for the appointment
+ *         completedTime:
+ *           type: string
+ *           format: date-time
+ *           description: When the appointment was completed
+ *         cancelledTime:
+ *           type: string
+ *           format: date-time
+ *           description: When the appointment was cancelled
+ *         cancellationReason:
+ *           type: string
+ *           description: Reason for cancellation if applicable
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: Creation timestamp
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: Last update timestamp
  */
 
 module.exports = function(app) {

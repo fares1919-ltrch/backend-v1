@@ -23,6 +23,53 @@ const controller = require("../controllers/user.controller");
  *           items:
  *             type: string
  *             enum: [user, officer, manager]
+ *         firstName:
+ *           type: string
+ *           description: User's first name
+ *         lastName:
+ *           type: string
+ *           description: User's last name
+ *         address:
+ *           type: object
+ *           properties:
+ *             street:
+ *               type: string
+ *             city:
+ *               type: string
+ *             state:
+ *               type: string
+ *             postalCode:
+ *               type: string
+ *             country:
+ *               type: string
+ *             lat:
+ *               type: number
+ *             lon:
+ *               type: number
+ *         aboutMe:
+ *           type: string
+ *           description: User's bio information
+ *         work:
+ *           type: string
+ *           description: User's occupation
+ *         workplace:
+ *           type: string
+ *           description: User's workplace
+ *         photo:
+ *           type: string
+ *           description: URL to user's profile photo
+ *         birthDate:
+ *           type: string
+ *           format: date
+ *           description: User's birth date
+ *         identityNumber:
+ *           type: number
+ *           description: User's identity number (unique)
+ *         provider:
+ *           type: string
+ *           enum: [local, google, github]
+ *           default: local
+ *           description: Authentication provider
  *         status:
  *           type: string
  *           enum: [active, inactive, suspended]

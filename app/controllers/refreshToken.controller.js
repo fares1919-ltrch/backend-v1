@@ -4,6 +4,10 @@ const User = db.user;
 const jwt = require("jsonwebtoken");
 const config = require("../config/auth.config");
 
+/************************************************
+ * REFRESH TOKEN MANAGEMENT
+ * Create new access tokens using refresh tokens
+ ************************************************/
 exports.createRefreshToken = async (req, res) => {
   try {
     const { refreshToken: requestToken } = req.body;
@@ -40,6 +44,10 @@ exports.createRefreshToken = async (req, res) => {
   }
 };
 
+/************************************************
+ * HELPER FUNCTIONS
+ * Utility methods for token validation
+ ************************************************/
 RefreshToken.isExpired = (token) => {
   return token.expiryDate.getTime() < new Date().getTime();
 };

@@ -19,7 +19,7 @@ const controller = require("../controllers/center.controller");
  *           description: The auto-generated id of the center
  *         name:
  *           type: string
- *           description: Name of the center
+ *           description: Name of the CPF processing center
  *         address:
  *           type: object
  *           required:
@@ -32,19 +32,25 @@ const controller = require("../controllers/center.controller");
  *           properties:
  *             street:
  *               type: string
+ *               description: Street address of the center
  *             city:
  *               type: string
+ *               description: City where the center is located
  *             state:
  *               type: string
+ *               description: State where the center is located
  *             postalCode:
  *               type: string
+ *               description: Postal/ZIP code of the center
  *             lat:
- *               type: number 
+ *               type: number
+ *               description: Latitude coordinate for map location 
  *             lon:
  *               type: number
+ *               description: Longitude coordinate for map location
  *         region:
  *           type: string
- *           description: Region where the center is located
+ *           description: Geographic region where the center is located
  *         capacity:
  *           type: object
  *           required:
@@ -53,10 +59,10 @@ const controller = require("../controllers/center.controller");
  *           properties:
  *             daily:
  *               type: integer
- *               description: Daily capacity of the center
+ *               description: Maximum number of appointments per day
  *             hourly:
  *               type: integer
- *               description: Hourly capacity of the center
+ *               description: Maximum number of appointments per hour
  *         workingHours:
  *           type: object
  *           required:
@@ -75,9 +81,11 @@ const controller = require("../controllers/center.controller");
  *                 start:
  *                   type: string
  *                   format: time
+ *                   description: Opening time on Monday (HH:MM format)
  *                 end:
  *                   type: string
  *                   format: time
+ *                   description: Closing time on Monday (HH:MM format)
  *             tuesday:
  *               type: object
  *               required:
@@ -87,9 +95,11 @@ const controller = require("../controllers/center.controller");
  *                 start:
  *                   type: string
  *                   format: time
+ *                   description: Opening time on Tuesday (HH:MM format)
  *                 end:
  *                   type: string
  *                   format: time
+ *                   description: Closing time on Tuesday (HH:MM format)
  *             wednesday:
  *               type: object
  *               required:
@@ -99,9 +109,11 @@ const controller = require("../controllers/center.controller");
  *                 start:
  *                   type: string
  *                   format: time
+ *                   description: Opening time on Wednesday (HH:MM format)
  *                 end:
  *                   type: string
  *                   format: time
+ *                   description: Closing time on Wednesday (HH:MM format)
  *             thursday:
  *               type: object
  *               required:
@@ -111,9 +123,11 @@ const controller = require("../controllers/center.controller");
  *                 start:
  *                   type: string
  *                   format: time
+ *                   description: Opening time on Thursday (HH:MM format)
  *                 end:
  *                   type: string
  *                   format: time
+ *                   description: Closing time on Thursday (HH:MM format)
  *             friday:
  *               type: object
  *               required:
@@ -123,49 +137,61 @@ const controller = require("../controllers/center.controller");
  *                 start:
  *                   type: string
  *                   format: time
+ *                   description: Opening time on Friday (HH:MM format)
  *                 end:
  *                   type: string
  *                   format: time
+ *                   description: Closing time on Friday (HH:MM format)
  *             saturday:
  *               type: object
  *               properties:
  *                 start:
  *                   type: string
  *                   format: time
+ *                   description: Opening time on Saturday (HH:MM format, if applicable)
  *                 end:
  *                   type: string
  *                   format: time
+ *                   description: Closing time on Saturday (HH:MM format, if applicable)
  *             sunday:
  *               type: object
  *               properties:
  *                 start:
  *                   type: string
  *                   format: time
+ *                   description: Opening time on Sunday (HH:MM format, if applicable)
  *                 end:
  *                   type: string
  *                   format: time
+ *                   description: Closing time on Sunday (HH:MM format, if applicable)
  *         status:
  *           type: string
  *           enum: ["active", "inactive", "maintenance"]
  *           default: "active"
+ *           description: Current operational status of the center
  *         contact:
  *           type: object
  *           properties:
  *             phone:
  *               type: string
+ *               description: Contact phone number for the center
  *             email:
  *               type: string
+ *               description: Contact email address for the center
  *         services:
  *           type: array
  *           items:
  *             type: string
  *             enum: ["cpf", "biometric", "document"]
+ *           description: List of services provided at this center
  *         createdAt:
  *           type: string
  *           format: date-time
+ *           description: When the center was created in the system
  *         updatedAt:
  *           type: string
  *           format: date-time
+ *           description: When the center information was last updated
  */
 
 module.exports = function(app) {

@@ -6,6 +6,10 @@ const BiometricProcessor = require("../utils/biometricProcessor");
 const config = require("../config/biometric.config");
 const fs = require('fs').promises;
 
+/************************************************
+ * BIOMETRIC DATA COLLECTION
+ * Submit and process biometric data
+ ************************************************/
 // Submit biometric data
 exports.submitBiometricData = async (req, res) => {
   try {
@@ -139,6 +143,10 @@ exports.submitBiometricData = async (req, res) => {
   }
 };
 
+/************************************************
+ * BIOMETRIC DATA RETRIEVAL AND MANAGEMENT
+ * Retrieve, update and delete biometric data
+ ************************************************/
 // Get user's biometric data
 exports.getBiometricData = async (req, res) => {
   try {
@@ -251,6 +259,10 @@ exports.deleteBiometricData = async (req, res) => {
   }
 };
 
+/************************************************
+ * BIOMETRIC VERIFICATION AND STATISTICS
+ * Verify data quality and generate statistics
+ ************************************************/
 // Verify biometric data quality
 exports.verifyBiometricData = async (req, res) => {
   try {

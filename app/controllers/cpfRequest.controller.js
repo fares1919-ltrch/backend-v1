@@ -3,10 +3,13 @@ const CpfRequest = db.cpfRequest;
 const User = db.user;
 const CpfCredential = db.cpfCredential;
 
+/************************************************
+ * CPF REQUEST CREATION
+ * Create and validate new CPF requests
+ ************************************************/
 // Create a new CPF request
 exports.create = async (req, res) => {
   try {
-
     console.log(req.body, "data")
     console.log("userid" , req.body.userId)
     // Check if user already has an active request
@@ -70,6 +73,10 @@ exports.create = async (req, res) => {
   }
 };
 
+/************************************************
+ * CPF REQUEST RETRIEVAL
+ * Find requests with various filters
+ ************************************************/
 // Get all CPF requests (with filtering)
 exports.findAll = async (req, res) => {
   try {
@@ -154,6 +161,65 @@ exports.findOne = async (req, res) => {
   }
 };
 
+// Get user's CPF request status
+exports.getUserRequest = async (req, res) => {
+  try {
+    const request = await CpfRequest.findOne({ userId: req.userId })
+      .sort({ createdAt: -1 })
+      .populate("officerDecision.decidedBy", "username email firstName lastName");
+
+    if (!request) {
+      return res.status(404).send({ message: "No request found" });
+    }
+
+    // If request is approved or completed, include credential info
+    if (request.status === "approved" || request.status === "completed") {
+      const credential = await CpfCredential.findOne({ cpfRequestId: request._id });
+      if (credential) {
+        request._doc.credential = credential;
+      }
+    }
+
+    res.send(request);
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+// Get all pending CPF requests (officer only)
+exports.getPendingRequests = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc' } = req.query;
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: {
+        [sortBy]: order === 'desc' ? -1 : 1
+      }
+    };
+
+    // First populate the userId field
+    const populatedRequest = CpfRequest.find({ status: "pending" })
+      .populate("userId", "username email firstName lastName");
+
+    // Then paginate the results
+    const requests = await populatedRequest.paginate(options);
+
+    res.send({
+      requests: requests.docs,
+      totalPages: requests.totalPages,
+      currentPage: requests.page
+    });
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+/************************************************
+ * CPF REQUEST MANAGEMENT
+ * Update and delete requests
+ ************************************************/
 // Officer: Update request decision
 exports.updateDecision = async (req, res) => {
   try {
@@ -231,61 +297,6 @@ exports.updateDecision = async (req, res) => {
     };
 
     res.send(response);
-  } catch (err) {
-    res.status(500).send({ message: err.message });
-  }
-};
-
-// Get user's CPF request status
-exports.getUserRequest = async (req, res) => {
-  try {
-    const request = await CpfRequest.findOne({ userId: req.userId })
-      .sort({ createdAt: -1 })
-      .populate("officerDecision.decidedBy", "username email firstName lastName");
-
-    if (!request) {
-      return res.status(404).send({ message: "No request found" });
-    }
-
-    // If request is approved or completed, include credential info
-    if (request.status === "approved" || request.status === "completed") {
-      const credential = await CpfCredential.findOne({ cpfRequestId: request._id });
-      if (credential) {
-        request._doc.credential = credential;
-      }
-    }
-
-    res.send(request);
-  } catch (err) {
-    res.status(500).send({ message: err.message });
-  }
-};
-
-// Get all pending CPF requests (officer only)
-exports.getPendingRequests = async (req, res) => {
-  try {
-    const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc' } = req.query;
-
-    const options = {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      sort: {
-        [sortBy]: order === 'desc' ? -1 : 1
-      }
-    };
-
-    // First populate the userId field
-    const populatedRequest = CpfRequest.find({ status: "pending" })
-      .populate("userId", "username email firstName lastName");
-
-    // Then paginate the results
-    const requests = await populatedRequest.paginate(options);
-
-    res.send({
-      requests: requests.docs,
-      totalPages: requests.totalPages,
-      currentPage: requests.page
-    });
   } catch (err) {
     res.status(500).send({ message: err.message });
   }

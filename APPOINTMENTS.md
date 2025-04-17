@@ -21,7 +21,8 @@ The core appointment model includes the following fields:
   },
   notes: String,
   location: { type: mongoose.Schema.Types.ObjectId, ref: "Center", required: true },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 }
 ```
 
@@ -30,11 +31,11 @@ The core appointment model includes the following fields:
 ### 1. Appointment Management
 
 #### GET /api/appointments/slots
-- **Description**: Get available appointment slots for a specific date and center
+- **Description**: Get available appointment slots
 - **Parameters**:
   - `date`: Date to check for slots (required)
-  - `center`: Center ID (required)
-- **Response**: List of available time slots with their availability status
+  - `centerId`: Center ID (required)
+- **Response**: List of available appointment slots
 
 #### GET /api/appointments/user
 - **Description**: Get user's own appointments
@@ -46,6 +47,8 @@ The core appointment model includes the following fields:
 - **Security**: Requires officer role
 - **Request Body**:
   - `userId`: User ID
+  - `officerId`: Officer ID
+  - `cpfRequestId`: CPF Request ID
   - `appointmentDate`: Date and time of appointment
   - `notes`: Additional notes
   - `location`: Center ID
@@ -68,7 +71,7 @@ The core appointment model includes the following fields:
 
 #### PUT /api/appointments/:id/reschedule
 - **Description**: Reschedule appointment
-- **Security**: Requires user authentication or officer role
+- **Security**: Requires officer role
 - **Request Body**:
   - `newDateTime`: New appointment date and time
   - `reason`: Reason for rescheduling
@@ -87,6 +90,15 @@ The core appointment model includes the following fields:
 - **Description**: Delete appointment (officer only)
 - **Security**: Requires officer role
 - **Response**: Confirmation message
+
+### 4. CPF Request Management
+
+#### GET /api/appointments/by-request/:cpfRequestId
+- **Description**: Get appointment by CPF request ID
+- **Security**: Requires user authentication
+- **Parameters**:
+  - `cpfRequestId`: CPF request ID
+- **Response**: Appointment details
 
 ## Business Logic
 
@@ -107,7 +119,7 @@ The core appointment model includes the following fields:
 3. Updates related CPF request status
 
 ### Rescheduling
-1. Validates user or officer role
+1. Validates officer role
 2. Checks new date validity
 3. Updates appointment and CPF request status
 4. Maintains audit trail

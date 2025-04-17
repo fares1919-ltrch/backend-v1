@@ -9,23 +9,77 @@ const controller = require("../controllers/cpfRequest.controller");
  *       type: object
  *       required:
  *         - identityNumber
- *         - dateOfBirth
  *         - address
- *         - purpose
+ *         - centerId
  *       properties:
+ *         userId:
+ *           type: string
+ *           description: ID of the user making the request
  *         identityNumber:
- *            type: number
- *            description: identity number 
+ *           type: string
+ *           description: Identity number for CPF issuance
  *         address:
+ *           type: object
+ *           properties:
+ *             street:
+ *               type: string
+ *             city:
+ *               type: string
+ *             state:
+ *               type: string
+ *             postalCode:
+ *               type: string
+ *             country:
+ *               type: string
+ *             lat:
+ *               type: number
+ *               description: Latitude coordinate
+ *               required: true
+ *             lon:
+ *               type: number
+ *               description: Longitude coordinate
+ *               required: true
+ *         cost:
  *           type: string
- *           description: Residential address
- *         purpose:
- *           type: string
- *           description: Purpose of CPF request
+ *           description: Cost of the CPF request
+ *           default: "7.09 BRL"
  *         status:
  *           type: string
- *           enum: [pending, approved, rejected]
+ *           enum: [pending, approved, rejected, completed]
  *           default: pending
+ *           description: Current status of the CPF request
+ *         officerDecision:
+ *           type: object
+ *           properties:
+ *             status:
+ *               type: string
+ *               enum: [pending, approved, rejected]
+ *               default: pending
+ *             comment:
+ *               type: string
+ *               description: Officer's comments on the decision
+ *             decidedAt:
+ *               type: string
+ *               format: date-time
+ *               description: When the decision was made
+ *             decidedBy:
+ *               type: string
+ *               description: ID of the officer who made the decision
+ *         appointmentDate:
+ *           type: string
+ *           format: date-time
+ *           description: Date and time of the appointment
+ *         centerId:
+ *           type: string
+ *           description: ID of the center where the CPF request will be processed
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the request was created
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the request was last updated
  */
 
 module.exports = function(app) {

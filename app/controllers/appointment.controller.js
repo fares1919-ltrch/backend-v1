@@ -4,6 +4,10 @@ const CpfRequest = db.cpfRequest;
 const Center = db.center;
 const User = db.user;
 
+/************************************************
+ * APPOINTMENT CREATION
+ * Create new appointment for approved CPF requests
+ ************************************************/
 // Create new appointment
 exports.create = async (req, res) => {
   try {
@@ -64,6 +68,10 @@ exports.create = async (req, res) => {
   }
 };
 
+/************************************************
+ * APPOINTMENT RETRIEVAL
+ * Get appointments by different criteria
+ ************************************************/
 // Get officer's appointments
 exports.getOfficerAppointments = async (req, res) => {
   try {
@@ -94,6 +102,7 @@ exports.getUserAppointment = async (req, res) => {
     res.status(500).send({ message: err.message });
   }
 };
+
 // Get appointment by CPF request ID
 exports.getAppointmentByRequestId = async (req, res) => {
   try {
@@ -109,6 +118,10 @@ exports.getAppointmentByRequestId = async (req, res) => {
   }
 };
 
+/************************************************
+ * SCHEDULING MANAGEMENT
+ * Manage appointment scheduling and time slots
+ ************************************************/
 // Get available time slots
 exports.getAvailableSlots = async (req, res) => {
   try {
@@ -262,6 +275,10 @@ exports.getCenterDailyAppointments = async (req, res) => {
   }
 };
 
+/************************************************
+ * APPOINTMENT STATUS MANAGEMENT
+ * Update appointment status (complete/cancel/etc)
+ ************************************************/
 // Update appointment status
 exports.updateStatus = async (req, res) => {
   try {
@@ -310,6 +327,10 @@ exports.updateStatus = async (req, res) => {
   }
 };
 
+/************************************************
+ * APPOINTMENT MODIFICATION
+ * Reschedule or delete appointments
+ ************************************************/
 // Reschedule appointment
 exports.rescheduleAppointment = async (req, res) => {
   try {

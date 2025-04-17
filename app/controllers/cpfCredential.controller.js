@@ -5,6 +5,10 @@ const BiometricData = db.biometricData;
 const crypto = require("crypto");
 const moment = require("moment");
 
+/************************************************
+ * CREDENTIAL CREATION AND RETRIEVAL
+ * Issue and retrieve CPF credentials
+ ************************************************/
 // Issue a new CPF credential
 exports.issueCpfCredential = async (req, res) => {
   try {
@@ -73,6 +77,10 @@ exports.getCpfCredential = async (req, res) => {
   }
 };
 
+/************************************************
+ * CREDENTIAL VALIDATION AND MANAGEMENT
+ * Verify, revoke, and manage CPF credentials
+ ************************************************/
 // Verify CPF credential authenticity
 exports.verifyCpfCredential = async (req, res) => {
   try {
@@ -134,6 +142,10 @@ exports.revokeCpfCredential = async (req, res) => {
   }
 };
 
+/************************************************
+ * CREDENTIAL STATISTICS
+ * Get statistics about issued credentials
+ ************************************************/
 // Get CPF credential statistics
 exports.getCredentialStats = async (req, res) => {
   try {
@@ -168,6 +180,10 @@ exports.getCredentialStats = async (req, res) => {
   }
 };
 
+/************************************************
+ * HELPER FUNCTIONS
+ * Utility functions for credential operations
+ ************************************************/
 // Helper function to generate CPF number
 function generateCpfNumber() {
   // Generate random 9 digits

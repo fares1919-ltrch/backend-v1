@@ -1,6 +1,199 @@
 const { authJwt } = require("../middlewares");
 const controller = require("../controllers/biometricData.controller");
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     BiometricData:
+ *       type: object
+ *       required:
+ *         - userId
+ *         - appointmentId
+ *         - officerId
+ *       properties:
+ *         userId:
+ *           type: string
+ *           description: ID of the user this biometric data belongs to
+ *         appointmentId:
+ *           type: string
+ *           description: ID of the appointment during which the data was collected
+ *         officerId:
+ *           type: string
+ *           description: ID of the officer who collected the data
+ *         fingerprints:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               finger:
+ *                 type: string
+ *                 enum: [right_thumb, right_index, right_middle, right_ring, right_little, left_thumb, left_index, left_middle, left_ring, left_little]
+ *               data:
+ *                 type: string
+ *                 description: Base64 encoded fingerprint data
+ *               format:
+ *                 type: string
+ *                 enum: [WSQ, JPEG2000, PNG]
+ *               quality:
+ *                 type: number
+ *                 description: Quality score 0-100
+ *               dpi:
+ *                 type: number
+ *               capturedAt:
+ *                 type: string
+ *                 format: date-time
+ *         face:
+ *           type: object
+ *           properties:
+ *             data:
+ *               type: string
+ *               description: Base64 encoded photo
+ *             format:
+ *               type: string
+ *               enum: [JPEG, PNG]
+ *             quality:
+ *               type: number
+ *               description: Quality score 0-100
+ *             attributes:
+ *               type: object
+ *               properties:
+ *                 width:
+ *                   type: number
+ *                 height:
+ *                   type: number
+ *                 hasNeutralExpression:
+ *                   type: boolean
+ *                 hasUniformBackground:
+ *                   type: boolean
+ *                 hasProperLighting:
+ *                   type: boolean
+ *             capturedAt:
+ *               type: string
+ *               format: date-time
+ *         iris:
+ *           type: object
+ *           properties:
+ *             right:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: string
+ *                   description: Base64 encoded iris data
+ *                 quality:
+ *                   type: number
+ *                 format:
+ *                   type: string
+ *                   enum: [ISO-19794-6, JPEG2000]
+ *                 capturedAt:
+ *                   type: string
+ *                   format: date-time
+ *             left:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: string
+ *                   description: Base64 encoded iris data
+ *                 quality:
+ *                   type: number
+ *                 format:
+ *                   type: string
+ *                   enum: [ISO-19794-6, JPEG2000]
+ *                 capturedAt:
+ *                   type: string
+ *                   format: date-time
+ *         supportingDocuments:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [identity_card, passport, birth_certificate, other]
+ *               documentNumber:
+ *                 type: string
+ *               issuingAuthority:
+ *                 type: string
+ *               data:
+ *                 type: string
+ *                 description: Base64 encoded document scan
+ *               format:
+ *                 type: string
+ *                 enum: [PDF, JPEG, PNG]
+ *               uploadedAt:
+ *                 type: string
+ *                 format: date-time
+ *         verificationStatus:
+ *           type: string
+ *           enum: [pending, verified, failed, requires_review]
+ *           default: pending
+ *         verificationDetails:
+ *           type: object
+ *           properties:
+ *             verifiedBy:
+ *               type: string
+ *               description: ID of the user who verified the data
+ *             verifiedAt:
+ *               type: string
+ *               format: date-time
+ *             failureReason:
+ *               type: string
+ *             attempts:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   timestamp:
+ *                     type: string
+ *                     format: date-time
+ *                   status:
+ *                     type: string
+ *                   reason:
+ *                     type: string
+ *         collectionMetadata:
+ *           type: object
+ *           properties:
+ *             deviceInfo:
+ *               type: object
+ *               properties:
+ *                 fingerprintScanner:
+ *                   type: string
+ *                 camera:
+ *                   type: string
+ *                 irisScanner:
+ *                   type: string
+ *             location:
+ *               type: object
+ *               properties:
+ *                 type:
+ *                   type: string
+ *                   default: "Point"
+ *                 coordinates:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *             collectionCenter:
+ *               type: string
+ *             environmentConditions:
+ *               type: object
+ *               properties:
+ *                 lighting:
+ *                   type: string
+ *                 temperature:
+ *                   type: number
+ *                 humidity:
+ *                   type: number
+ *         collectedAt:
+ *           type: string
+ *           format: date-time
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
 module.exports = function(app) {
   app.use(function(req, res, next) {
     res.header(

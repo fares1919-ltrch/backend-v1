@@ -1,6 +1,71 @@
 const { authJwt } = require("../middlewares");
 const controller = require("../controllers/cpfCredential.controller");
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     CPFCredential:
+ *       type: object
+ *       required:
+ *         - userId
+ *         - cpfRequestId
+ *         - cpfNumber
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Unique identifier for the credential
+ *         userId:
+ *           type: string
+ *           description: ID of the user this credential belongs to
+ *         cpfRequestId:
+ *           type: string
+ *           description: ID of the CPF request that led to this credential
+ *         cpfNumber:
+ *           type: string
+ *           description: The actual CPF number issued
+ *         issuedDate:
+ *           type: string
+ *           format: date-time
+ *           description: When the credential was issued
+ *         expiryDate:
+ *           type: string
+ *           format: date-time
+ *           description: When the credential expires (if applicable)
+ *         status:
+ *           type: string
+ *           enum: [active, revoked, expired]
+ *           default: active
+ *           description: Current status of the credential
+ *         issuedBy:
+ *           type: string
+ *           description: ID of the officer who issued the credential
+ *         revocationInfo:
+ *           type: object
+ *           properties:
+ *             revokedBy:
+ *               type: string
+ *               description: ID of the officer who revoked the credential
+ *             revokedAt:
+ *               type: string
+ *               format: date-time
+ *               description: When the credential was revoked
+ *             reason:
+ *               type: string
+ *               description: Reason for revocation
+ *         verificationCode:
+ *           type: string
+ *           description: Code that can be used to verify the credential's authenticity
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the credential record was created
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the credential record was last updated
+ */
+
 module.exports = function(app) {
   app.use(function(req, res, next) {
     res.header(
@@ -33,6 +98,10 @@ module.exports = function(app) {
    *     responses:
    *       201:
    *         description: CPF credential issued successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/CPFCredential'
    *       403:
    *         description: Not authorized
    *       404:
@@ -61,6 +130,10 @@ module.exports = function(app) {
    *     responses:
    *       200:
    *         description: CPF credential details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/CPFCredential'
    *       403:
    *         description: Not authorized
    *       404:
@@ -87,6 +160,19 @@ module.exports = function(app) {
    *     responses:
    *       200:
    *         description: Credential verification result
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 valid:
+   *                   type: boolean
+   *                   description: Whether the credential is valid
+   *                 credential:
+   *                   $ref: '#/components/schemas/CPFCredential'
+   *                 message:
+   *                   type: string
+   *                   description: Verification message
    *       404:
    *         description: Credential not found
    */
@@ -124,6 +210,10 @@ module.exports = function(app) {
    *     responses:
    *       200:
    *         description: Credential revoked successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/CPFCredential'
    *       403:
    *         description: Not authorized
    *       404:

@@ -4,6 +4,10 @@ const Appointment = db.appointment;
 
 const controller = {};
 
+/************************************************
+ * CENTER RETRIEVAL
+ * Get center information
+ ************************************************/
 // Get all centers
 controller.getAllCenters = async (req, res) => {
   try {
@@ -64,6 +68,10 @@ controller.getCenterById = async (req, res) => {
   }
 };
 
+/************************************************
+ * CENTER MANAGEMENT
+ * Create and update centers
+ ************************************************/
 // Create new center (Officer only)
 controller.createCenter = async (req, res) => {
   try {
@@ -121,6 +129,10 @@ controller.updateCenter = async (req, res) => {
   }
 };
 
+/************************************************
+ * CENTER SCHEDULING AND STATISTICS
+ * Get appointment information and center statistics
+ ************************************************/
 // Get center's daily schedule (Officer only)
 controller.getCenterSchedule = async (req, res) => {
   try {

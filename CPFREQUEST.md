@@ -12,27 +12,31 @@ The core CPF request model includes the following fields:
 {
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   identityNumber: { type: String, required: true },
-  birthDate: { type: Date, required: true },
-  startDate: { type: Date, required: true },
-  endDate: { type: Date, required: true },
-  duration: { type: Number, required: true },
-  cost: { type: Number, required: true },
+  address: {
+    street: { type: String },
+    city: { type: String },
+    state: { type: String },
+    postalCode: { type: String },
+    country: { type: String },
+    lat: { type: Number, required: true },
+    lon: { type: Number, required: true }
+  },
+  cost: { type: String, default: "7.09 BRL" },
   status: {
     type: String,
     enum: ["pending", "approved", "rejected", "completed"],
     default: "pending"
   },
   officerDecision: {
-    status: {
-      type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending"
-    },
-    comments: String,
+    status: { type: String, enum: ["pending","approved","rejected"], default: "pending" },
+    comment: String,
     decidedAt: Date,
     decidedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
   },
-  appointmentDate: Date
+  appointmentDate: Date,
+  centerId: { type: mongoose.Schema.Types.ObjectId, ref: "Center", required: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 }
 ```
 
@@ -45,28 +49,21 @@ The core CPF request model includes the following fields:
 - **Security**: Requires user authentication
 - **Request Body**:
   - `identityNumber`: Unique identifier for the CPF
-  - `birthDate`: User's birth date
-  - `startDate`: Training start date
-  - `endDate`: Training end date
-  - `duration`: Training duration in hours
-  - `cost`: Cost of the CPF
+  - `address`: Object containing street, city, state, postalCode, country, lat, lon
+  - `cost`: Cost of the CPF request (optional)
+  - `centerId`: ID of the center
 - **Response**: Created CPF request details
 
 #### GET /api/cpf-requests
-- **Description**: List all CPF requests with filtering
+- **Description**: List all CPF requests
 - **Security**: Requires user authentication
 - **Query Parameters**:
   - `status`: Filter by request status
-  - `startDate`: Filter by training start date
-  - `endDate`: Filter by training end date
-  - `page`: Pagination page number
-  - `limit`: Number of items per page
-- **Response**: List of CPF requests with pagination
-
-#### GET /api/cpf-requests/user
-- **Description**: Get user's own CPF request status
-- **Security**: Requires user authentication
-- **Response**: User's CPF request details
+  - `page`: Page number
+  - `limit`: Items per page
+  - `sortBy`: Sort field (createdAt/updatedAt)
+  - `order`: Sort order (asc/desc)
+- **Response**: Paginated list of CPF requests
 
 ### 2. Officer Operations
 
@@ -74,18 +71,18 @@ The core CPF request model includes the following fields:
 - **Description**: Get all pending CPF requests
 - **Security**: Requires officer role
 - **Query Parameters**:
-  - `page`: Pagination page number
-  - `limit`: Number of items per page
-  - `sortBy`: Field to sort by
-  - `order`: Sort order (asc/desc)
-- **Response**: List of pending requests with pagination
+  - `page`: Page number
+  - `limit`: Items per page
+  - `sortBy`: Sort field
+  - `order`: Sort order
+- **Response**: List of pending CPF requests
 
 #### PUT /api/cpf-requests/:id/status
-- **Description**: Update CPF request status
+- **Description**: Update CPF request status (officer only)
 - **Security**: Requires officer role
 - **Request Body**:
   - `status`: New status (approved/rejected)
-  - `comments`: Officer's comments
+  - `officerNotes`: Officer's comments
 - **Response**: Updated request status details
 
 ### 3. Request Details
@@ -96,7 +93,7 @@ The core CPF request model includes the following fields:
 - **Response**: Detailed CPF request information
 
 #### DELETE /api/cpf-requests/:id
-- **Description**: Delete CPF request
+- **Description**: Delete user's pending CPF request
 - **Security**: Requires user authentication
 - **Response**: Confirmation message
 

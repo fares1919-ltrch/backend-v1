@@ -1,710 +1,254 @@
-# Backend endpoints
+# CPF System - Backend Documentation
+
+## Overview
+
+The CPF System is a comprehensive platform designed to manage the issuance and verification of CPF (Cadastro de Pessoas Físicas) numbers in Brazil. This system handles user registration, CPF requests, biometric data collection, appointment scheduling, and credential issuance.
+
+## System Architecture
+
+The backend is built using:
+- **Node.js** with **Express.js** framework
+- **MongoDB** database with **Mongoose** ODM
+- **JWT** for authentication and authorization
+- **Swagger** for API documentation
+- **Passport.js** for OAuth integration
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│              │     │              │     │              │
+│    Client    │◄────┤     API      │◄────┤   Database   │
+│ Application  │     │    Server    │     │  (MongoDB)   │
+│              │────►│   (Express)  │────►│              │
+└──────────────┘     └──────────────┘     └──────────────┘
+                            │
+                            ▼
+                     ┌──────────────┐
+                     │  External    │
+                     │  Services    │
+                     │  - Email     │
+                     │  - OAuth     │
+                     └──────────────┘
+```
+
+## Core Features
+
+1. **User Management**
+   - User registration and authentication
+   - Role-based access control (user, officer, manager)
+   - OAuth integration with Google and GitHub
+
+2. **CPF Request Process**
+   - Request submission
+   - Officer review and approval
+   - Status tracking
+
+3. **Appointment System**
+   - Scheduling appointments at service centers
+   - Availability management
+   - Check-in and completion tracking
+
+4. **Biometric Data Collection**
+   - Fingerprint, face, and iris scanning
+   - Supporting document management
+   - Data verification
+
+5. **Credential Issuance**
+   - CPF credential generation
+   - Verification mechanisms
+   - Revocation handling
+
+6. **Notification System**
+   - Event-based notifications
+   - User alerts and reminders
+
+7. **Center Management**
+   - Service center registration
+   - Capacity and availability planning
+   - Geographic distribution
+
+## Data Models
+
+### User Model
+- Basic user information
+- Authentication details
+- Role associations
+
+### CPF Request Model
+- Request details
+- Status tracking
+- Officer decisions
+
+### Appointment Model
+- Scheduling information
+- Status tracking
+- Location details
+
+### Biometric Data Model
+- Fingerprints
+- Facial data
+- Iris scans
+- Supporting documents
+
+### CPF Credential Model
+- Credential details
+- Issuance information
+- Verification data
+
+### Center Model
+- Location details
+- Capacity information
+- Working hours
+- Available services
+
+### Notification Model
+- User-specific notifications
+- Read status
+- Priority and actions
 
 ## API Endpoints
 
-# API Endpoints Documentation
-
-## Authentication Endpoints
-
-### 1. Sign Up
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/auth/signup`
-
-**Headers:**
-
-- `Content-Type: application/json`
-
-**Request Body (JSON):**
-
-```json
-{
-  "username": "example",
-  "email": "example@example.com",
-  "password": "123456",
-  "roles":["user"]
-}
-{
-  "username": "faress",
-  "email": "exadddd@example.com",
-  "password": "123456",
-  "roles": ["manager", "user"]
-}// This is perfectly valid
-{
-  "username": "faress",
-  "email": "exadddd@example.com",
-  "password": "123456",
-  "roles": ["manager", "user", "officer"]
-}// This is also valid
-
-"roles" not "role"
-```
-
-**Description:** Registers a new user in the system.
-
----
-
-### 2. Sign In
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/auth/signin`
-
-**Headers:**
-
-- `Content-Type: application/json`
-
-**Request Body (JSON):**
-
-```json
-{
-  "username": "example",
-  "password": "123456"
-}
-```
-
-**Description:** Logs in a user and returns a JWT token.
-
----
-
-### 3. Sign Out
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/auth/signout`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Description:** Logs out a user by invalidating the token.
-
----
-
-### 4. Refresh Token
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/auth/refreshtoken`
-
-**Headers:**
-
-- `Content-Type: application/json`
-
-**Request Body (JSON):**
-
-```json
-{
-  "refreshToken": "string"
-}
-```
-
-**Description:** Refreshes an expired access token using a refresh token.
-
----
-
-### 5. Google OAuth Authentication
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/auth/google`
-
-**Description:** Initiates Google OAuth authentication flow.
-
----
-
-### 6. Google OAuth Callback
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/auth/google/callback`
-
-**Description:** Callback URL for Google OAuth authentication.
-
----
-
-### 7. GitHub OAuth Authentication
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/auth/github`
-
-**Description:** Initiates GitHub OAuth authentication flow.
-
----
-
-### 8. GitHub OAuth Callback
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/auth/github/callback`
-
-**Description:** Callback URL for GitHub OAuth authentication.
-
----
-
-## Public and Protected Content Endpoints
-
-### 9. Public Content
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/test/all`
-
-**Headers:** None
-
-**Request Body:** None
-
-**Description:** Provides access to public content.
-
----
-
-### 10. User Board
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/test/user`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Description:** Provides user-specific content.
-
----
-
-### 11. Manager Board
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/test/manager`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Description:** Provides manager-specific content.
-
----
-
-### 12. Officer Board
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/test/officer`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Description:** Provides officer-specific content.
-
----
-
-### 13. Welcome Message
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/`
-
-**Headers:** None
-
-**Request Body:** None
-
-**Description:** Root endpoint displaying a welcome message.
-
----
-
-## Password Management Endpoints
-
-### 14. Forgot Password
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/password/forgot`
-
-**Headers:**
-
-- `Content-Type: application/json`
-
-**Request Body (JSON):**
-
-```json
-{
-  "email": "string"
-}
-```
-
-**Description:** Sends a password reset email to the user.
-
----
-
-### 15. Reset Password
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/password/reset`
-
-**Headers:**
-
-- `Content-Type: application/json`
-
-**Request Body (JSON):**
-
-```json
-{
-  "token": "string",
-  "password": "string"
-}
-```
-
-**Description:** Resets a user's password using a reset token.
-
----
-
-### 16. Change Password
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/password/change`
-
-**Headers:**
-
-- `Content-Type: application/json`
-- `Authorization: Bearer <token>`
-
-**Request Body (JSON):**
-
-```json
-{
-  "currentPassword": "string",
-  "newPassword": "string"
-}
-```
-
-**Description:** Changes a user's password when logged in.
-
----
-
-## Profile Management Endpoints
-
-### 17. Get User Profile
-
-**Method:** GET
-
-**URL:** `http://localhost:8080/api/profile`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Response:**
-```json
-{
-  "_id": "ObjectId",
-  "username": "string",
-  "email": "string",
-  "firstName": "string",
-  "lastName": "string",
-  "address": "string",
-  "city": "string",
-  "country": "string",
-  "postalCode": "string",
-  "aboutMe": "string",
-  "work": "string",
-  "workplace": "string",
-  "photo": "/uploads/filename.jpg",
-  "roles": ["string"],
-  "activeSessions": [
-    {
-      "token": "string",
-      "device": "string",
-      "lastActive": "timestamp",
-      "ipAddress": "string"
-    }
-  ]
-}
-```
-
-**Description:** Retrieves the authenticated user's profile information including basic info, professional details, photo URL, roles, and active sessions.
-
----
-
-### 18. Update User Profile
-
-**Method:** PUT
-
-**URL:** `http://localhost:8080/api/profile`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-- `Content-Type: multipart/form-data`
-
-**Request Body (Form Data):**
-
-```
-firstName: string
-lastName: string
-address: string
-city: string
-country: string
-postalCode: string
-aboutMe: string
-work: string
-workplace: string
-photo: file (optional, max 5MB, supported formats: jpg, jpeg, png, gif)
-```
-
-**Response:**
-```json
-{
-  "message": "Profile updated successfully",
-  "data": { // Updated profile data }
-}
-```
-
-**Description:** Updates the user's profile information. All fields are optional. The photo field is optional and supports file uploads with size and format validation.
-
----
-
-### 19. Delete User Account
-
-**Method:** DELETE
-
-**URL:** `http://localhost:8080/api/profile`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Response:**
-```json
-{
-  "message": "Account deleted successfully"
-}
-```
-
-**Description:** Deletes the authenticated user's account. This action is irreversible and will remove all associated data.
-
----
-
-### 20. Link OAuth Account
-
-**Method:** POST
-
-**URL:** `http://localhost:8080/api/profile/link-oauth`
-
-**Headers:**
-
-- `Content-Type: application/json`
-- `Authorization: Bearer <token>`
-
-**Request Body (JSON):**
-
-```json
-{
-  "provider": "google|github",
-  "providerId": "string"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Google account linked successfully"
-}
-```
-
-**Description:** Links an OAuth account (Google or GitHub) to the user's existing account. Prevents linking the same OAuth account to multiple users.
-
----
-
-### 21. Revoke Session
-
-**Method:** DELETE
-
-**URL:** `http://localhost:8080/api/profile/session/{sessionToken}`
-
-**Headers:**
-
-- `Authorization: Bearer <token>`
-
-**Request Body:** None
-
-**Response:**
-```json
-{
-  "message": "Session revoked successfully"
-}
-```
-
-**Description:** Revokes a specific active session for the user, logging them out from that device.
-
----
-
-## Notes:
-
-- Replace `<token>` in the `Authorization` header with the actual JWT token received after logging in.
-- Ensure the `Content-Type` header is set to `application/json` for endpoints that require a request body.
-- Unauthorized access to protected endpoints will result in a `401 Unauthorized` response.
-- The API includes rate limiting for login attempts (5 attempts per 15 minutes).
-- CSRF protection is implemented for all routes except OAuth callbacks[this will be added later just befor production].
-
-A robust backend API built with Node.js, Express, and MongoDB that provides authentication, user management, and profile features.
-
-## Features
-
-- User authentication (JWT-based)
-- OAuth2 authentication (Google, GitHub)
-- Profile management with photo upload
-- Password reset functionality
-- Session management
-- Role-based authorization (User, Manager, Officer)
-- Rate limiting for security
-- Secure cookie sessions
-- Error handling middleware
-
-## Prerequisites
-
-- Node.js (v14 or higher)
-- MongoDB (v4.4 or higher)
-- Google OAuth2 credentials (for Google login)
-- GitHub OAuth credentials (for GitHub login)
-
-## Setup Instructions
-
-1. Clone the repository:
-
+The API is organized into the following main categories:
+
+### Authentication Endpoints
+- User registration
+- Login/logout
+- Token refresh
+- OAuth flows
+
+### CPF Request Endpoints
+- Submission
+- Status updates
+- Officer review
+
+### Appointment Endpoints
+- Scheduling
+- Availability checking
+- Status updates
+
+### Biometric Data Endpoints
+- Data submission
+- Verification
+
+### Credential Endpoints
+- Issuance
+- Verification
+- Revocation
+
+### Center Endpoints
+- Center management
+- Capacity planning
+
+### Notification Endpoints
+- Sending notifications
+- Reading status
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v14+)
+- MongoDB
+- npm or yarn
+
+### Installation
+
+1. Clone the repository
 ```bash
-git clone [repository-url]
-cd node-js-express-login--mongodb
+git clone <repository-url>
+cd backend
 ```
 
-2. Install dependencies:
-
+2. Install dependencies
 ```bash
 npm install
 ```
 
-3. Create a `.env` file in the root directory with the following variables:
-
-```env
-# Server Configuration
+3. Configure environment variables
+   Create a `.env` file based on the `.env.example` template:
+```
 PORT=8080
-NODE_ENV=development
-
-# MongoDB Configuration
-DB_HOST=localhost
-DB_PORT=27017
-DB_NAME=your_database_name
-
-# JWT Configuration
-JWT_SECRET=your-jwt-secret-key
-JWT_EXPIRATION=86400
-
-# Session Configuration
-SESSION_SECRET=your-session-secret
-
-# OAuth Configuration
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_CALLBACK_URL=http://localhost:8080/api/auth/google/callback
-
-GITHUB_CLIENT_ID=your-github-client-id
-GITHUB_CLIENT_SECRET=your-github-client-secret
-GITHUB_CALLBACK_URL=http://localhost:8080/api/auth/github/callback
-
-# Frontend URL for CORS
-CLIENT_URL=http://localhost:4200
-
-# Email Configuration (for password reset)
-EMAIL_SERVICE=gmail
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-email-app-password
+MONGODB_URI=mongodb://localhost:27017/cpf-system
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRATION=3600
+JWT_REFRESH_EXPIRATION=86400
 ```
 
-4. Create the uploads directory:
-
-```bash
-mkdir -p app/middlewares/uploads
-```
-
-5. Start the server:
-
+4. Start the server
 ```bash
 npm start
 ```
 
+5. Access the API documentation
+   Open `http://localhost:8080/api-docs` in your browser.
+
+## Development Guidelines
+
+### Code Structure
+- **models/** - Database schemas and models
+- **controllers/** - Business logic
+- **routes/** - API endpoints definition
+- **middlewares/** - Request processing middleware
+- **config/** - Configuration files
+- **utils/** - Utility functions
+
+### Authentication Flow
+
+1. User registers or logs in
+2. Server issues JWT + refresh token
+3. Client includes JWT in Authorization header
+4. Server validates token on protected routes
+5. Token refresh when expired
+
+### Request Processing Flow
+
+1. CPF Request Submission
+   - User creates request
+   - System validates data
+   - Request enters pending state
+
+2. Officer Review
+   - Officer reviews request
+   - Decision made (approve/reject)
+   - Notification sent to user
+
+3. Appointment Scheduling
+   - For approved requests
+   - User selects available slot
+   - Confirmation sent
+
+4. Biometric Collection
+   - During appointment
+   - Officer collects biometric data
+   - System validates quality
+
+5. Credential Issuance
+   - System generates CPF
+   - Credential created and issued
+   - Verification code generated
+
+## Security Considerations
+
+- JWT tokens with appropriate expiration
+- Password hashing with bcrypt
+- Role-based access control
+- Rate limiting for sensitive endpoints
+- Input validation and sanitization
+- Secure HTTP headers with Helmet
+
+## Monitoring and Maintenance
+
+- Error logging
+- Performance monitoring
+- Database backups
+- Version control
+
 ## API Documentation
 
-### Base URL
-
-```
-http://localhost:8080
-```
-
-### Authentication Headers
-
-For protected routes, include the JWT token in the Authorization header:
-
-```
-Authorization: Bearer <your-jwt-token>
-```
-
-### Response Format
-
-All responses follow this format:
-
-```json
-{
-  "message": "Success/Error message",
-  "data": {}, // Optional response data
-  "error": {} // Optional error details
-}
-```
-
-### Error Handling
-
-Common error status codes:
-
-- 400: Bad Request
-- 401: Unauthorized
-- 403: Forbidden
-- 404: Not Found
-- 429: Too Many Requests
-- 500: Internal Server Error
-
-### Rate Limiting
-
-- Login attempts are limited to 5 per 15 minutes per IP
-- Exceeded limits will return a 429 status code
-
-### File Upload Specifications
-
-For photo uploads:
-
-- Maximum file size: 5MB
-- Supported formats: JPG, JPEG, PNG, GIF
-- Files are stored in: `/app/middlewares/uploads`
-- Access URL pattern: `/uploads/{filename}`
-
-## Development Notes
-
-### Security Features
-
-- CORS enabled with configurable origin
-- Helmet.js for security headers
-- Rate limiting on sensitive endpoints
-- Secure cookie sessions
-- Password hashing with bcrypt
-- JWT token authentication
-- File upload validation
-
-### Database Schema
-
-**User Model:**
-
-```javascript
-{
-  username: String,
-  email: String,
-  password: String,
-  resetPasswordToken: String,
-  resetPasswordExpires: Date,
-  provider: {
-    type: String,
-    enum: ["local", "google", "github"],
-    default: "local"
-  },
-  googleId: String,
-  githubId: String,
-  firstName: String,
-  lastName: String,
-  address: String,
-  city: String,
-  country: String,
-  postalCode: String,
-  aboutMe: String,
-  work: String,
-  workplace: String,
-  photo: String,
-  activeSessions: [{
-    token: String,
-    device: String,
-    lastActive: Date,
-    ipAddress: String
-  }],
-  roles: [{
-    type: ObjectId,
-    ref: "Role"
-  }]
-}
-```
-
-**Role Model:**
-
-```javascript
-{
-  name: String; // "user", "manager", "officer"
-}
-```
-
-### OAuth Flow
-
-1. Frontend redirects to:
-
-   - Google: `/api/auth/google`
-   - GitHub: `/api/auth/github`
-
-2. User authenticates with provider
-
-3. Provider redirects to callback URL:
-
-   - Google: `/api/auth/google/callback`
-   - GitHub: `/api/auth/github/callback`
-
-4. Backend creates/updates user and returns JWT
-
-### Testing the API
-
-You can use tools like Postman or curl to test the API. Example curl commands:
-
-```bash
-# Login
-curl -X POST http://localhost:8080/api/auth/signin \
-  -H "Content-Type: application/json" \
-  -d '{"username":"example","password":"123456"}'
-
-# Update Profile with Photo
-curl -X PUT http://localhost:8080/api/profile \
-  -H "Authorization: Bearer <your-token>" \
-  -F "photo=@/path/to/photo.jpg" \
-  -F "firstName=John" \
-  -F "lastName=Doe"
-```
+Full API documentation is available via Swagger at `/api-docs` when the server is running.
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
-
-## License
-
-This project is licensed under the ISC License.
+1. Follow the established code structure
+2. Maintain consistent error handling
+3. Update API documentation for any changes
+4. Write tests for new features
+5. Adhere to the existing code style

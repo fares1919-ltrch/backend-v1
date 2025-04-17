@@ -7,6 +7,10 @@ const RefreshToken = db.refreshToken;
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
+/************************************************
+ * USER REGISTRATION
+ * Creates a new user account with appropriate roles
+ ************************************************/
 exports.signup = async (req, res) => {
   try {
     // Save User to Database
@@ -80,6 +84,10 @@ exports.signup = async (req, res) => {
   }
 };
 
+/************************************************
+ * USER AUTHENTICATION
+ * Handles login and generates JWT tokens
+ ************************************************/
 exports.signin = async (req, res) => {
   try {
     // Find user and populate roles
@@ -174,6 +182,10 @@ exports.signin = async (req, res) => {
   }
 };
 
+/************************************************
+ * USER LOGOUT
+ * Ends the user session and invalidates tokens
+ ************************************************/
 exports.signout = async (req, res) => {
   try {
     const token = req.headers["x-access-token"] || req.session.token;
@@ -200,9 +212,28 @@ exports.signout = async (req, res) => {
   }
 };
 
-// Google OAuth Callback
-exports.googleCallback = async (req, res) => {
+/************************************************
+ * OAUTH AUTHENTICATION
+ * Handles OAuth callbacks (Google, GitHub)
+ ************************************************/
+
+/**
+ * Shared OAuth callback handler to reduce code duplication
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {String} provider - OAuth provider name (google/github)
+ * @param {Error} err - Error object if any
+ */
+const handleOAuthCallback = async (req, res, provider, err) => {
   try {
+    if (err) {
+      console.error(`${provider} OAuth error:`, err);
+      const loginErrorUrl = process.env.NODE_ENV === "production"
+        ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=${provider}`
+        : `http://localhost:4200/auth/login?error=oauth_error&provider=${provider}`;
+      return res.redirect(loginErrorUrl);
+    }
+
     // The user object is already populated by passport
     const user = req.user;
     const token = jwt.sign({ id: user._id }, config.jwtSecret, {
@@ -270,90 +301,142 @@ exports.googleCallback = async (req, res) => {
     // Default to citizen dashboard if role is not recognized
     return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
   } catch (err) {
-    console.error("Google OAuth callback error:", err);
+    console.error(`${provider} OAuth callback error:`, err);
     const loginErrorUrl = process.env.NODE_ENV === "production"
-      ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error`
-      : "http://localhost:4200/auth/login?error=oauth_error";
+      ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=${provider}`
+      : "http://localhost:4200/auth/login?error=oauth_error&provider=${provider}";
 
     return res.redirect(loginErrorUrl);
+  }
+};
+
+// Google OAuth Callback
+exports.googleCallback = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication failed' });
+    }
+
+    // Check if user exists
+    let user = await User.findOne({ email: req.user.email });
+    
+    if (!user) {
+      // Create new user if doesn't exist
+      const roles = await Role.find({ name: { $in: ['user'] } });
+      user = new User({
+        username: req.user.email,
+        email: req.user.email,
+        firstName: req.user.name?.givenName,
+        lastName: req.user.name?.familyName,
+        roles: roles.map(role => role._id),
+        googleId: req.user.id
+      });
+      await user.save();
+    }
+
+    // Set session data
+    req.session.userId = user._id;
+    req.session.username = user.username;
+    req.session.roles = user.roles;
+
+    // Generate tokens
+    const token = jwt.sign({ id: user._id }, config.jwtSecret, {
+      expiresIn: "24h", // Match cookie duration
+      algorithm: "HS256",
+    });
+    const refreshToken = await RefreshToken.createToken(user);
+
+    // Set secure cookies
+    res.cookie('jwt', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    // Return user data and tokens
+    res.json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      roles: user.roles,
+      accessToken: token,
+      tokenType: 'Bearer'
+    });
+  } catch (err) {
+    console.error('Google OAuth Error:', err);
+    res.status(500).json({ message: 'Internal server error during Google authentication' });
   }
 };
 
 // GitHub OAuth Callback
 exports.githubCallback = async (req, res) => {
   try {
-    // The user object is already populated by passport
-    const user = req.user;
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication failed' });
+    }
+
+    // Check if user exists
+    let user = await User.findOne({ email: req.user.emails[0].value });
+    
+    if (!user) {
+      // Create new user if doesn't exist
+      const roles = await Role.find({ name: { $in: ['user'] } });
+      user = new User({
+        username: req.user.username,
+        email: req.user.emails[0].value,
+        firstName: req.user.displayName,
+        roles: roles.map(role => role._id),
+        githubId: req.user.id
+      });
+      await user.save();
+    }
+
+    // Set session data
+    req.session.userId = user._id;
+    req.session.username = user.username;
+    req.session.roles = user.roles;
+
+    // Generate tokens
     const token = jwt.sign({ id: user._id }, config.jwtSecret, {
       expiresIn: "24h", // Match cookie duration
       algorithm: "HS256",
     });
+    const refreshToken = await RefreshToken.createToken(user);
 
-    // Ensure user has the correct roles and populate them
-    if (!user.roles || user.roles.length === 0) {
-      const userRole = await Role.findOne({ name: "user" });
-      if (!userRole) {
-        throw new Error("Default user role not found");
-      }
-      user.roles = [userRole._id];
-      await user.save();
-    }
-
-    // Populate roles for the user
-    await user.populate("roles");
-
-    // Set session data with populated roles
-    req.session.token = token;
-    req.session.userId = user._id;
-    req.session.username = user.username;
-    req.session.roles = user.roles.map((role) => `ROLE_${role.name.toUpperCase()}`);
-    req.session.lastActive = new Date();
-
-    // Set secure cookie
-    res.cookie("token", token, {
+    // Set secure cookies
+    res.cookie('jwt', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      domain:
-        process.env.NODE_ENV === "production"
-          ? process.env.DOMAIN
-          : "localhost",
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
-    // Generate refresh token with longer expiration
-    let refreshToken = await RefreshToken.createToken(user);
-
-    // Set secure cookie with refresh token
-    res.cookie("refreshToken", refreshToken, {
+    res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    // Redirect to appropriate dashboard based on roles
-    const frontendUrl = process.env.NODE_ENV === "production"
-      ? process.env.FRONTEND_URL
-      : "http://localhost:4200";
-
-    const roles = req.session.roles;
-    if (roles.includes("ROLE_USER")) {
-      return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
-    } else if (roles.includes("ROLE_MANAGER")) {
-      return res.redirect(`${frontendUrl}/dashboard/manager?token=${token}`);
-    } else if (roles.includes("ROLE_OFFICER")) {
-      return res.redirect(`${frontendUrl}/dashboard/officer?token=${token}`);
-    }
-
-    // Default to citizen dashboard if role is not recognized
-    return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
+    // Return user data and tokens
+    res.json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      roles: user.roles,
+      accessToken: token,
+      tokenType: 'Bearer'
+    });
   } catch (err) {
-    console.error("GitHub OAuth callback error:", err);
-    const loginErrorUrl = process.env.NODE_ENV === "production"
-      ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error`
-      : "http://localhost:4200/auth/login?error=oauth_error";
-
-    return res.redirect(loginErrorUrl);
+    console.error('GitHub OAuth Error:', err);
+    res.status(500).json({ message: 'Internal server error during GitHub authentication' });
   }
 };

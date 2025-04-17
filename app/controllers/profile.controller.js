@@ -4,6 +4,9 @@ const jwt = require("jsonwebtoken");
 const config = require("../config/auth.config");
 const path = require("path");
 
+/************************************************
+ * PROFILE RETRIEVAL AND MANAGEMENT
+ ************************************************/
 // Get user profile
 exports.getProfile = async (req, res) => {
   try {
@@ -109,6 +112,9 @@ exports.deleteAccount = async (req, res) => {
   }
 };
 
+/************************************************
+ * ACCOUNT LINKING AND SESSIONS
+ ************************************************/
 // Link OAuth account
 exports.linkOAuthAccount = async (req, res) => {
   try {
@@ -179,6 +185,9 @@ exports.revokeSession = async (req, res) => {
   }
 };
 
+/************************************************
+ * LOCATION MANAGEMENT AND CPF VALIDATION
+ ************************************************/
 // Update user location
 exports.updateLocation = async (req, res) => {
   try {
