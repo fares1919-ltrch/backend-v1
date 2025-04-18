@@ -174,6 +174,7 @@ exports.signin = async (req, res) => {
       roles: authorities,
       accessToken: token,
       refreshToken: refreshToken,
+      provider: user.provider || "local",
     });
   } catch (err) {
     res
@@ -188,27 +189,175 @@ exports.signin = async (req, res) => {
  ************************************************/
 exports.signout = async (req, res) => {
   try {
-    const token = req.headers["x-access-token"] || req.session.token;
+    console.log("Backend: Processing signout request");
+
+    // Get token from various places
+    const token =
+      req.headers["x-access-token"] || req.session?.token || req.cookies?.token;
+
+    // Get refresh token from various places
+    const refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
+
+    console.log("Backend: Attempting to sign out with token:", !!token);
 
     if (token) {
-      // Remove the session from user's active sessions
-      const user = await User.findById(req.userId);
-      if (user) {
-        user.activeSessions = user.activeSessions.filter(
-          (session) => session.token !== token
+      try {
+        // Attempt to decode the user ID from the token
+        const decoded = jwt.verify(token, config.jwtSecret);
+
+        if (decoded && decoded.id) {
+          // Get the user and check their auth provider
+          const user = await User.findById(decoded.id);
+
+          if (user) {
+            console.log(
+              "Backend: Found user for logout, provider:",
+              user.provider,
+              "Expected provider stored on user object:"
+            );
+
+            // Log all user fields to diagnose the issue
+            console.log("Backend: User data:", {
+              email: user.email,
+              username: user.username,
+              googleId: user.googleId,
+              githubId: user.githubId,
+              provider: user.provider,
+            });
+
+            // Update the provider field if the user has a googleId or githubId but provider is not set correctly
+            if (user.googleId && user.provider !== "google") {
+              user.provider = "google";
+              console.log("Backend: Fixed provider to google");
+            } else if (user.githubId && user.provider !== "github") {
+              user.provider = "github";
+              console.log("Backend: Fixed provider to github");
+            }
+
+            // Remove this session from user's active sessions
+            user.activeSessions = user.activeSessions.filter(
+              (session) => session.token !== token
+            );
+            await user.save();
+
+            // Remove refresh tokens for this user from the database
+            await RefreshToken.deleteMany({ user: user._id });
+            console.log("Backend: Deleted all refresh tokens for user");
+
+            // Extra cleanup for OAuth providers
+            if (user.provider === "google" || user.provider === "github") {
+              console.log(
+                `Backend: Special cleanup for ${user.provider} provider`
+              );
+              // Additional cleanup for OAuth sessions if needed
+            }
+          }
+        }
+      } catch (tokenError) {
+        // Token might be expired or invalid, but we proceed with logout anyway
+        console.log(
+          "Backend: Token validation error during signout:",
+          tokenError.message
         );
-        await user.save();
       }
     }
 
-    req.session = null;
+    // If we have a refresh token but no access token, try to find and delete it
+    if (refreshToken && !token) {
+      try {
+        const foundToken = await RefreshToken.findOne({ token: refreshToken });
+        if (foundToken) {
+          console.log("Backend: Found refresh token to delete");
+          await RefreshToken.deleteOne({ token: refreshToken });
+        }
+      } catch (refreshError) {
+        console.log(
+          "Backend: Error deleting refresh token:",
+          refreshError.message
+        );
+      }
+    }
+
+    // Clear the session regardless of token
+    if (req.session) {
+      try {
+        if (typeof req.session.destroy === "function") {
+          // Express-session style
+          req.session.destroy();
+        } else {
+          // Cookie-session style
+          req.session = null;
+        }
+      } catch (sessionError) {
+        console.error("Backend: Error clearing session:", sessionError);
+        // Fallback
+        req.session = null;
+      }
+    }
+
+    // Clear cookies with varied domain settings to ensure they're removed
+    // First try with exact domain matching
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      domain:
+        process.env.NODE_ENV === "production"
+          ? process.env.DOMAIN
+          : "localhost",
+      path: "/",
+    });
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      domain:
+        process.env.NODE_ENV === "production"
+          ? process.env.DOMAIN
+          : "localhost",
+      path: "/",
+    });
+
+    // Then try without domain specification for broader removal
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    // Also clear session cookies
+    res.clearCookie("connect.sid", { path: "/" });
+    res.clearCookie("sessionId", { path: "/" });
+
+    // Add cache-busting headers to ensure browsers don't cache the response
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Surrogate-Control", "no-store");
+
+    console.log("Backend: User signed out successfully");
     return res.status(200).json({
       message: "You've been signed out successfully.",
+      success: true,
     });
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: err.message || "An error occurred during signout" });
+    console.error("Backend: Error during signout:", err);
+    res.status(500).json({
+      message: err.message || "An error occurred during signout",
+      success: false,
+    });
   }
 };
 
@@ -228,9 +377,10 @@ const handleOAuthCallback = async (req, res, provider, err) => {
   try {
     if (err) {
       console.error(`${provider} OAuth error:`, err);
-      const loginErrorUrl = process.env.NODE_ENV === "production"
-        ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=${provider}`
-        : `http://localhost:4200/auth/login?error=oauth_error&provider=${provider}`;
+      const loginErrorUrl =
+        process.env.NODE_ENV === "production"
+          ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=${provider}`
+          : `http://localhost:4200/auth/login?error=oauth_error&provider=${provider}`;
       return res.redirect(loginErrorUrl);
     }
 
@@ -258,7 +408,9 @@ const handleOAuthCallback = async (req, res, provider, err) => {
     req.session.token = token;
     req.session.userId = user._id;
     req.session.username = user.username;
-    req.session.roles = user.roles.map((role) => `ROLE_${role.name.toUpperCase()}`);
+    req.session.roles = user.roles.map(
+      (role) => `ROLE_${role.name.toUpperCase()}`
+    );
     req.session.lastActive = new Date();
 
     // Set secure cookie
@@ -285,9 +437,10 @@ const handleOAuthCallback = async (req, res, provider, err) => {
     });
 
     // Redirect to appropriate dashboard based on roles
-    const frontendUrl = process.env.NODE_ENV === "production"
-      ? process.env.FRONTEND_URL
-      : "http://localhost:4200";
+    const frontendUrl =
+      process.env.NODE_ENV === "production"
+        ? process.env.FRONTEND_URL
+        : "http://localhost:4200";
 
     const roles = req.session.roles;
     if (roles.includes("ROLE_USER")) {
@@ -302,9 +455,10 @@ const handleOAuthCallback = async (req, res, provider, err) => {
     return res.redirect(`${frontendUrl}/dashboard/citizen?token=${token}`);
   } catch (err) {
     console.error(`${provider} OAuth callback error:`, err);
-    const loginErrorUrl = process.env.NODE_ENV === "production"
-      ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=${provider}`
-      : "http://localhost:4200/auth/login?error=oauth_error&provider=${provider}";
+    const loginErrorUrl =
+      process.env.NODE_ENV === "production"
+        ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=${provider}`
+        : "http://localhost:4200/auth/login?error=oauth_error&provider=${provider}";
 
     return res.redirect(loginErrorUrl);
   }
@@ -313,130 +467,349 @@ const handleOAuthCallback = async (req, res, provider, err) => {
 // Google OAuth Callback
 exports.googleCallback = async (req, res) => {
   try {
+    console.log("Google OAuth callback started");
+
     if (!req.user) {
-      return res.status(401).json({ message: 'Authentication failed' });
+      console.error("Google OAuth error: No user data in request");
+      return res.status(401).json({ message: "Authentication failed" });
     }
+
+    console.log("Google OAuth user data:", {
+      id: req.user.id,
+      email: req.user.email,
+      displayName: req.user.displayName,
+      name: req.user.name,
+    });
 
     // Check if user exists
-    let user = await User.findOne({ email: req.user.email });
-    
+    let user = await User.findOne({
+      $or: [{ email: req.user.email }, { googleId: req.user.id }],
+    }).populate("roles");
+
+    // Flag to check if this is a new user
+    let isNewUser = false;
+
     if (!user) {
+      console.log("Google OAuth: Creating new user");
       // Create new user if doesn't exist
-      const roles = await Role.find({ name: { $in: ['user'] } });
+      isNewUser = true;
+      const defaultRole = await Role.findOne({ name: "user" });
+      if (!defaultRole) {
+        console.error("Google OAuth error: Default role not found");
+        return res.status(500).json({ message: "Default role not found" });
+      }
+
       user = new User({
-        username: req.user.email,
+        username: req.user.email.split("@")[0],
         email: req.user.email,
-        firstName: req.user.name?.givenName,
-        lastName: req.user.name?.familyName,
-        roles: roles.map(role => role._id),
-        googleId: req.user.id
+        firstName: req.user.name?.givenName || req.user.displayName,
+        lastName: req.user.name?.familyName || "",
+        roles: [defaultRole._id],
+        googleId: req.user.id,
+        provider: "google",
       });
       await user.save();
+      await user.populate("roles");
+      console.log("Google OAuth: New user created with ID:", user._id);
+    } else {
+      console.log("Google OAuth: Existing user found with ID:", user._id);
     }
 
-    // Set session data
-    req.session.userId = user._id;
-    req.session.username = user.username;
-    req.session.roles = user.roles;
+    // For new users, redirect to login page with a message
+    if (isNewUser) {
+      console.log("Google OAuth: Redirecting new user to login page");
+      const frontendUrl =
+        process.env.NODE_ENV === "production"
+          ? process.env.FRONTEND_URL
+          : "http://localhost:4200";
 
-    // Generate tokens
+      return res.redirect(
+        `${frontendUrl}/auth/login?registration=success&provider=google`
+      );
+    }
+
+    // For existing users, continue with the login process
+    // Generate JWT token
     const token = jwt.sign({ id: user._id }, config.jwtSecret, {
-      expiresIn: "24h", // Match cookie duration
       algorithm: "HS256",
+      expiresIn: "24h",
     });
+    console.log("Google OAuth: Generated token for user");
+
+    // Generate refresh token
     const refreshToken = await RefreshToken.createToken(user);
 
-    // Set secure cookies
-    res.cookie('jwt', token, {
+    // Set session data
+    req.session.token = token;
+    req.session.userId = user._id;
+    req.session.username = user.username;
+    req.session.roles = user.roles.map(
+      (role) => `ROLE_${role.name.toUpperCase()}`
+    );
+    console.log("Google OAuth: Session data set");
+
+    // Set cookies
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+    console.log("Google OAuth: Cookies set");
 
-    // Return user data and tokens
-    res.json({
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      roles: user.roles,
-      accessToken: token,
-      tokenType: 'Bearer'
-    });
+    // Redirect to frontend OAuth callback with token
+    const frontendUrl =
+      process.env.NODE_ENV === "production"
+        ? process.env.FRONTEND_URL
+        : "http://localhost:4200";
+
+    const redirectUrl = `${frontendUrl}/auth/oauth-callback/google?token=${token}`;
+    console.log("Google OAuth: Redirecting to:", redirectUrl);
+    return res.redirect(redirectUrl);
   } catch (err) {
-    console.error('Google OAuth Error:', err);
-    res.status(500).json({ message: 'Internal server error during Google authentication' });
+    console.error("Google OAuth Error:", err);
+
+    // Instead of redirecting directly, send a JSON response with redirect URL
+    const errorUrl =
+      process.env.NODE_ENV === "production"
+        ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=google`
+        : "http://localhost:4200/auth/login?error=oauth_error&provider=google";
+
+    return res.status(400).json({
+      success: false,
+      message: "Authentication failed",
+      redirectUrl: errorUrl,
+    });
   }
 };
 
+/* Commenting out GitHub authentication as requested
 // GitHub OAuth Callback
 exports.githubCallback = async (req, res) => {
   try {
+    console.log("GitHub OAuth callback started");
+
     if (!req.user) {
-      return res.status(401).json({ message: 'Authentication failed' });
+      console.error("GitHub OAuth error: No user data in request");
+      return res.status(401).json({ message: "Authentication failed" });
     }
+
+    console.log("GitHub OAuth user data:", {
+      id: req.user.id,
+      email: req.user.emails?.[0]?.value,
+      displayName: req.user.displayName,
+      username: req.user.username,
+    });
 
     // Check if user exists
-    let user = await User.findOne({ email: req.user.emails[0].value });
-    
+    let user = await User.findOne({
+      $or: [{ email: req.user.emails?.[0]?.value }, { githubId: req.user.id }],
+    }).populate("roles");
+
+    // Flag to check if this is a new user
+    let isNewUser = false;
+
     if (!user) {
+      console.log("GitHub OAuth: Creating new user");
       // Create new user if doesn't exist
-      const roles = await Role.find({ name: { $in: ['user'] } });
+      isNewUser = true;
+      const defaultRole = await Role.findOne({ name: "user" });
+      if (!defaultRole) {
+        console.error("GitHub OAuth error: Default role not found");
+        return res.status(500).json({ message: "Default role not found" });
+      }
+
       user = new User({
-        username: req.user.username,
-        email: req.user.emails[0].value,
-        firstName: req.user.displayName,
-        roles: roles.map(role => role._id),
-        githubId: req.user.id
+        username:
+          req.user.username || req.user.emails?.[0]?.value.split("@")[0],
+        email: req.user.emails?.[0]?.value,
+        firstName: req.user.displayName || "",
+        roles: [defaultRole._id],
+        githubId: req.user.id,
+        provider: "github",
       });
       await user.save();
+      await user.populate("roles");
+      console.log("GitHub OAuth: New user created with ID:", user._id);
+    } else {
+      console.log("GitHub OAuth: Existing user found with ID:", user._id);
     }
 
-    // Set session data
-    req.session.userId = user._id;
-    req.session.username = user.username;
-    req.session.roles = user.roles;
+    // For new users, redirect to login page with a message
+    if (isNewUser) {
+      console.log("GitHub OAuth: Redirecting new user to login page");
+      const frontendUrl =
+        process.env.NODE_ENV === "production"
+          ? process.env.FRONTEND_URL
+          : "http://localhost:4200";
 
-    // Generate tokens
+      return res.redirect(
+        `${frontendUrl}/auth/login?registration=success&provider=github`
+      );
+    }
+
+    // For existing users, continue with the login process
+    // Generate JWT token
     const token = jwt.sign({ id: user._id }, config.jwtSecret, {
-      expiresIn: "24h", // Match cookie duration
       algorithm: "HS256",
+      expiresIn: "24h",
     });
+    console.log("GitHub OAuth: Generated token for user");
+
+    // Generate refresh token
     const refreshToken = await RefreshToken.createToken(user);
 
-    // Set secure cookies
-    res.cookie('jwt', token, {
+    // Set session data
+    req.session.token = token;
+    req.session.userId = user._id;
+    req.session.username = user.username;
+    req.session.roles = user.roles.map(
+      (role) => `ROLE_${role.name.toUpperCase()}`
+    );
+    console.log("GitHub OAuth: Session data set");
+
+    // Set cookies
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    console.log("GitHub OAuth: Cookies set");
+
+    // Redirect to frontend OAuth callback
+    const frontendUrl =
+      process.env.NODE_ENV === "production"
+        ? process.env.FRONTEND_URL
+        : "http://localhost:4200";
+
+    const redirectUrl = `${frontendUrl}/auth/oauth-callback/github?token=${token}`;
+    console.log("GitHub OAuth: Redirecting to:", redirectUrl);
+    return res.redirect(redirectUrl);
+  } catch (err) {
+    console.error("GitHub OAuth Error:", err);
+
+    // Instead of redirecting directly, send a JSON response with redirect URL
+    const errorUrl =
+      process.env.NODE_ENV === "production"
+        ? `${process.env.FRONTEND_URL}/auth/login?error=oauth_error&provider=github`
+        : "http://localhost:4200/auth/login?error=oauth_error&provider=github";
+
+    return res.status(400).json({
+      success: false,
+      message: "Authentication failed",
+      redirectUrl: errorUrl,
+    });
+  }
+};
+*/
+
+// Google logout handler
+exports.googleLogout = async (req, res) => {
+  try {
+    console.log("Backend: Processing Google logout request");
+
+    // Get token from various places
+    const token =
+      req.headers["x-access-token"] || req.session?.token || req.cookies?.token;
+
+    // Get refresh token from various places
+    const refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
+
+    if (token) {
+      try {
+        // Attempt to decode the user ID from the token
+        const decoded = jwt.verify(token, config.jwtSecret);
+
+        if (decoded && decoded.id) {
+          // Get the user and check if it's a Google user
+          const user = await User.findById(decoded.id);
+
+          if (user && user.provider === "google") {
+            console.log("Backend: Found Google user for logout");
+
+            // Remove this session from user's active sessions
+            user.activeSessions = user.activeSessions.filter(
+              (session) => session.token !== token
+            );
+            await user.save();
+
+            // Remove refresh tokens for this user from the database
+            await RefreshToken.deleteMany({ user: user._id });
+            console.log("Backend: Deleted all refresh tokens for Google user");
+          }
+        }
+      } catch (tokenError) {
+        console.log(
+          "Backend: Token validation error during Google logout:",
+          tokenError.message
+        );
+      }
+    }
+
+    // Clear the session regardless of token
+    if (req.session) {
+      try {
+        if (typeof req.session.destroy === "function") {
+          req.session.destroy();
+        } else {
+          req.session = null;
+        }
+      } catch (sessionError) {
+        console.error("Backend: Error clearing session:", sessionError);
+        req.session = null;
+      }
+    }
+
+    // Clear all cookies
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
     });
 
-    // Return user data and tokens
-    res.json({
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      roles: user.roles,
-      accessToken: token,
-      tokenType: 'Bearer'
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    res.clearCookie("connect.sid", { path: "/" });
+    res.clearCookie("sessionId", { path: "/" });
+
+    // Add cache-busting headers
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
+    return res.status(200).json({
+      message: "Google logout successful",
+      success: true,
     });
   } catch (err) {
-    console.error('GitHub OAuth Error:', err);
-    res.status(500).json({ message: 'Internal server error during GitHub authentication' });
+    console.error("Backend: Error during Google logout:", err);
+    res.status(500).json({
+      message: err.message || "An error occurred during Google logout",
+      success: false,
+    });
   }
 };

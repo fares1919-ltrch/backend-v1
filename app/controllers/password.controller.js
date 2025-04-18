@@ -27,10 +27,9 @@ exports.forgotPassword = async (req, res) => {
 
     await user.save();
 
-    // Create reset URL
-    const resetUrl = `${req.protocol}://${req.get(
-      "host"
-    )}/reset-password/${resetToken}`;
+    // Create reset URL - Updated to use frontend URL
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:4200";
+    const resetUrl = `${clientUrl}/auth/reset-password/${resetToken}`;
 
     // Email content
     const mailOptions = {
@@ -49,13 +48,22 @@ exports.forgotPassword = async (req, res) => {
 
     res.status(200).json({ message: "Password reset email sent!" });
   } catch (err) {
+    console.error("Forgot password error:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, password } = req.body;
+    // Get token from request params or body
+    const token = req.params.token || req.body.token;
+    const { password } = req.body;
+
+    if (!token || !password) {
+      return res
+        .status(400)
+        .json({ message: "Token and password are required!" });
+    }
 
     // Hash token
     const resetPasswordToken = crypto
@@ -83,6 +91,7 @@ exports.resetPassword = async (req, res) => {
 
     res.status(200).json({ message: "Password has been reset!" });
   } catch (err) {
+    console.error("Reset password error:", err);
     res.status(500).json({ message: err.message });
   }
 };

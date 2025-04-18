@@ -35,7 +35,7 @@ exports.updateProfile = async (req, res) => {
       "work",
       "workplace",
       "birthDate",
-      "identityNumber"
+      "identityNumber",
     ];
 
     const updates = Object.keys(req.body)
@@ -54,7 +54,7 @@ exports.updateProfile = async (req, res) => {
         "postalCode",
         "country",
         "lat",
-        "lon"
+        "lon",
       ];
       for (const field of requiredFields) {
         if (
@@ -63,7 +63,7 @@ exports.updateProfile = async (req, res) => {
           updates.address[field] === ""
         ) {
           return res.status(400).json({
-            message: `Missing address field: ${field}`
+            message: `Missing address field: ${field}`,
           });
         }
       }
@@ -194,7 +194,9 @@ exports.updateLocation = async (req, res) => {
     const { address, coordinates } = req.body;
 
     if (!coordinates || !coordinates.lat || !coordinates.lon) {
-      return res.status(400).json({ message: "Valid coordinates are required" });
+      return res
+        .status(400)
+        .json({ message: "Valid coordinates are required" });
     }
 
     const user = await User.findByIdAndUpdate(
@@ -203,10 +205,10 @@ exports.updateLocation = async (req, res) => {
         $set: {
           location: {
             lat: coordinates.lat,
-            lon: coordinates.lon
+            lon: coordinates.lon,
           },
-          address: address || ""
-        }
+          address: address || "",
+        },
       },
       { new: true, runValidators: true }
     ).select("-password -resetPasswordToken -resetPasswordExpires");
@@ -235,16 +237,17 @@ exports.validateProfileForCpf = async (req, res) => {
       "firstName",
       "lastName",
       "birthDate",
-      "identityNumber"
+      "identityNumber",
     ];
 
     // Check which fields are missing
-    const missingFields = requiredFields.filter(field => {
+    const missingFields = requiredFields.filter((field) => {
       return !user[field];
     });
 
     // Check if location is missing, but track it separately
-    const locationMissing = !user.location || !user.location.lat || !user.location.lon;
+    const locationMissing =
+      !user.location || !user.location.lat || !user.location.lon;
 
     // We'll use this for the complete check
     // If the user is on the CPF request page, we don't consider location as a blocking issue
@@ -263,9 +266,33 @@ exports.validateProfileForCpf = async (req, res) => {
       message: isComplete
         ? "Profile is complete for CPF request"
         : locationNeeded && messageFields.length === 0
-          ? "Please select your location on the map"
-          : `Profile is incomplete. Missing fields: ${messageFields.join(", ")}`
+        ? "Please select your location on the map"
+        : `Profile is incomplete. Missing fields: ${messageFields.join(", ")}`,
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Check if identity number is unique
+exports.checkIdentityNumberUnique = async (req, res) => {
+  try {
+    const { identityNumber } = req.params;
+
+    if (!identityNumber) {
+      return res.status(400).json({ message: "Identity number is required" });
+    }
+
+    // Check if this identity number exists with any user except current user
+    const existingUser = await User.findOne({
+      identityNumber: identityNumber,
+      _id: { $ne: req.userId },
+    });
+
+    // If user found, the identity number is not unique
+    const isUnique = !existingUser;
+
+    res.status(200).json(isUnique);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

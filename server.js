@@ -8,12 +8,15 @@ const passport = require("passport");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const path = require("path");
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
 const cookieParser = require("cookie-parser");
-const MongoStore = require('connect-mongo');
-const { errorHandler, notFoundHandler } = require('./app/middlewares/errorHandler');
-const config = require('./app/config/config');
+const MongoStore = require("connect-mongo");
+const {
+  errorHandler,
+  notFoundHandler,
+} = require("./app/middlewares/errorHandler");
+const config = require("./app/config/config");
 require("./app/config/passport"); // Load Passport config
 require("dotenv").config();
 
@@ -76,9 +79,9 @@ app.use(
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: `mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`,
-      collectionName: 'sessions',
+      collectionName: "sessions",
       ttl: 24 * 60 * 60, // Session TTL in seconds (1 day)
-      autoRemove: 'native', // Use MongoDB's TTL index for automatic removal
+      autoRemove: "native", // Use MongoDB's TTL index for automatic removal
       touchAfter: 24 * 3600, // Only update session every 24 hours unless data changes
     }),
     cookie: {
@@ -87,9 +90,11 @@ app.use(
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: "lax",
       domain:
-        process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost",
+        process.env.NODE_ENV === "production"
+          ? process.env.DOMAIN
+          : "localhost",
     },
-    name: 'sessionId', // Custom session name to avoid conflicts
+    name: "sessionId", // Custom session name to avoid conflicts
   })
 );
 
@@ -107,15 +112,15 @@ app.use((req, res, next) => {
   if (req.session && req.session.lastActivity) {
     const inactiveTime = Date.now() - req.session.lastActivity;
     const maxInactiveTime = 30 * 60 * 1000; // 30 minutes
-    
+
     if (inactiveTime > maxInactiveTime) {
       // Session expired due to inactivity
       req.session.destroy((err) => {
         if (err) {
-          console.error('Error destroying session:', err);
+          console.error("Error destroying session:", err);
         }
-        return res.status(401).json({ 
-          message: "Session expired due to inactivity. Please log in again." 
+        return res.status(401).json({
+          message: "Session expired due to inactivity. Please log in again.",
         });
       });
       return;
@@ -181,11 +186,12 @@ require("./app/routes/cpfCredential.routes")(app);
 require("./app/routes/notification.routes")(app);
 require("./app/routes/center.routes")(app);
 require("./app/routes/stats.routes")(app);
+require("./app/routes/password.routes")(app);
 
 // ===== API DOCUMENTATION =====
 
 // Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ===== ERROR HANDLING =====
 

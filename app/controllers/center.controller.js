@@ -32,14 +32,19 @@ controller.getAllCenters = async (req, res) => {
         id: center._id,
         name: center.name,
         region: center.region,
-        address: `${center.address.street}, ${center.address.city}, ${center.address.state}`,
+        address: {
+          street: center.address.street,
+          city: center.address.city,
+          state: center.address.state,
+          postalCode: center.address.postalCode,
+          lat: center.address.lat,
+          lon: center.address.lon,
+        },
         capacity: center.capacity.hourly,
         workingHours: {
           start: center.workingHours.monday.start,
           end: center.workingHours.monday.end,
         },
-        lat: center.address.lat,
-        lon: center.address.lon,
       }));
 
     if (formattedCenters.length === 0) {

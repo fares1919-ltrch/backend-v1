@@ -43,12 +43,9 @@ const upload = require("../middlewares/upload");
  *           format: date-time
  */
 
-module.exports = function(app) {
-  app.use(function(req, res, next) {
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, Content-Type, Accept"
-    );
+module.exports = function (app) {
+  app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept");
     next();
   });
 
@@ -72,11 +69,7 @@ module.exports = function(app) {
    *       404:
    *         description: Profile not found
    */
-  app.get(
-    "/api/profile",
-    [authJwt.verifyToken],
-    controller.getProfile
-  );
+  app.get("/api/profile", [authJwt.verifyToken], controller.getProfile);
 
   /**
    * @swagger
@@ -161,11 +154,7 @@ module.exports = function(app) {
    *       403:
    *         description: Not authorized
    */
-  app.delete(
-    "/api/profile",
-    [authJwt.verifyToken],
-    controller.deleteAccount
-  );
+  app.delete("/api/profile", [authJwt.verifyToken], controller.deleteAccount);
 
   /**
    * @swagger
@@ -343,5 +332,36 @@ module.exports = function(app) {
     "/api/profile/validate-cpf",
     [authJwt.verifyToken],
     controller.validateProfileForCpf
+  );
+
+  /**
+   * @swagger
+   * /api/profile/check-identity/{identityNumber}:
+   *   get:
+   *     summary: Check if identity number is unique
+   *     tags: [Profile]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: identityNumber
+   *         schema:
+   *           type: string
+   *         required: true
+   *         description: Identity number to check
+   *     responses:
+   *       200:
+   *         description: Returns boolean indicating if the identity number is unique
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: boolean
+   *       403:
+   *         description: Not authorized
+   */
+  app.get(
+    "/api/profile/check-identity/:identityNumber",
+    [authJwt.verifyToken],
+    controller.checkIdentityNumberUnique
   );
 };

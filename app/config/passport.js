@@ -1,6 +1,6 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const GitHubStrategy = require("passport-github2").Strategy;
+// const GitHubStrategy = require("passport-github2").Strategy; // Commented out GitHub strategy
 const jwt = require("jsonwebtoken");
 const { google, github, jwtSecret } = require("./auth.config");
 const User = require("../models/user.model");
@@ -17,7 +17,7 @@ passport.use(
       authUri: google.authUri,
       tokenUri: google.tokenUri,
       passReqToCallback: true,
-      scope: ['profile', 'email']
+      scope: ["profile", "email"],
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
@@ -33,18 +33,26 @@ passport.use(
           if (!userRole) {
             throw new Error("Default user role not found");
           }
-          
+
           user = new User({
-            username: profile.displayName || email.split('@')[0],
+            username: profile.displayName || email.split("@")[0],
             email,
             provider: "google",
             googleId: profile.id,
             roles: [userRole._id],
             firstName: profile.name?.givenName,
             lastName: profile.name?.familyName,
-            photo: profile.photos?.[0]?.value
+            photo: profile.photos?.[0]?.value,
           });
           await user.save();
+        } else {
+          // Ensure provider is set to google even for existing users
+          if (user.provider !== "google") {
+            user.provider = "google";
+            user.googleId = profile.id;
+            await user.save();
+            console.log("Updated existing user with Google provider");
+          }
         }
 
         // Set user in the request
@@ -59,6 +67,7 @@ passport.use(
   )
 );
 
+/* Commenting out GitHub authentication as requested
 // GitHub OAuth Strategy
 passport.use(
   new GitHubStrategy(
@@ -69,12 +78,12 @@ passport.use(
       authorizationURL: github.authorizationURL,
       tokenURL: github.tokenURL,
       passReqToCallback: true,
-      scope: github.scope
+      scope: github.scope,
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
-        console.log('GitHub Profile:', profile); // Debug log
-        
+        console.log("GitHub Profile:", profile); // Debug log
+
         if (!profile.emails?.[0]?.value) {
           throw new Error("No email found in GitHub profile");
         }
@@ -87,18 +96,26 @@ passport.use(
           if (!userRole) {
             throw new Error("Default user role not found");
           }
-          
+
           user = new User({
-            username: profile.username || email.split('@')[0],
+            username: profile.username || email.split("@")[0],
             email,
             provider: "github",
             githubId: profile.id,
             roles: [userRole._id],
             firstName: profile.name?.givenName,
             lastName: profile.name?.familyName,
-            photo: profile.photos?.[0]?.value
+            photo: profile.photos?.[0]?.value,
           });
           await user.save();
+        } else {
+          // Ensure provider is set to github even for existing users
+          if (user.provider !== "github") {
+            user.provider = "github";
+            user.githubId = profile.id;
+            await user.save();
+            console.log("Updated existing user with GitHub provider");
+          }
         }
 
         // Set user in the request
@@ -112,6 +129,7 @@ passport.use(
     }
   )
 );
+*/
 
 // Serialize user for session
 passport.serializeUser((user, done) => {

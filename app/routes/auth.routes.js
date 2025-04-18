@@ -3,6 +3,9 @@ const controller = require("../controllers/auth.controller");
 const refreshTokenController = require("../controllers/refreshToken.controller");
 const passport = require("passport");
 const rateLimit = require("express-rate-limit");
+const jwt = require("jsonwebtoken");
+const config = require("../config/auth.config");
+const User = require("../models/user.model");
 
 /**
  * @swagger
@@ -168,11 +171,60 @@ module.exports = function (app) {
    */
   app.post("/api/auth/signout", controller.signout);
 
+  // Special Google logout route
+  app.post("/api/auth/google/signout", controller.googleLogout);
+
   // Refresh Token Route
-  app.post(
-    "/api/auth/refreshtoken", 
-    refreshTokenController.createRefreshToken
-  );
+  app.post("/api/auth/refreshtoken", refreshTokenController.createRefreshToken);
+
+  // Token validation route - explicitly check if a token is valid without refreshing
+  app.get("/api/auth/validate-token", async (req, res) => {
+    try {
+      // Get token from various sources
+      const token =
+        req.headers.authorization?.split(" ")[1] ||
+        req.headers["x-access-token"] ||
+        req.cookies?.token;
+
+      if (!token) {
+        return res.status(401).json({
+          valid: false,
+          message: "No token provided",
+        });
+      }
+
+      // Verify token without refreshing it
+      const decoded = jwt.verify(token, config.jwtSecret);
+
+      // Check if user exists
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        return res.status(401).json({
+          valid: false,
+          message: "User not found",
+        });
+      }
+
+      return res.status(200).json({
+        valid: true,
+        userId: user._id,
+        username: user.username,
+      });
+    } catch (err) {
+      if (err instanceof jwt.TokenExpiredError) {
+        return res.status(401).json({
+          valid: false,
+          expired: true,
+          message: "Token expired",
+        });
+      }
+
+      return res.status(401).json({
+        valid: false,
+        message: "Invalid token",
+      });
+    }
+  });
 
   /**
    * @swagger
@@ -210,49 +262,103 @@ module.exports = function (app) {
 
   // OAuth Routes
   app.get(
-    '/api/auth/google',
-    passport.authenticate('google', { 
-      scope: ['profile', 'email'],
-      session: true
+    "/api/auth/google",
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      session: true,
     })
   );
 
   app.get(
-    '/api/auth/google/callback', 
-    passport.authenticate('google', { 
-      failureRedirect: '/api/auth/login?error=oauth_error',
-      session: true
+    "/api/auth/google/callback",
+    passport.authenticate("google", {
+      failureRedirect: "/api/auth/login?error=oauth_error",
+      session: true,
     }),
     controller.googleCallback
   );
 
+  /* Commenting out GitHub authentication as requested
   app.get(
-    '/api/auth/github',
-    passport.authenticate('github', { 
-      scope: ['user:email', 'read:user'],
-      session: true
+    "/api/auth/github",
+    passport.authenticate("github", {
+      scope: ["user:email", "read:user"],
+      session: true,
     })
   );
 
   app.get(
-    '/api/auth/github/callback', 
-    passport.authenticate('github', { 
-      failureRedirect: '/api/auth/login?error=oauth_error',
-      session: true
+    "/api/auth/github/callback",
+    passport.authenticate("github", {
+      failureRedirect: "/api/auth/login?error=oauth_error",
+      session: true,
     }),
     controller.githubCallback
   );
+  */
 
   // Session check endpoint
-  app.get('/api/auth/session', (req, res) => {
+  app.get("/api/auth/session", (req, res) => {
     if (req.session && req.session.userId) {
       res.json({
         id: req.session.userId,
         username: req.session.username,
-        roles: req.session.roles
+        roles: req.session.roles,
       });
     } else {
-      res.status(401).json({ message: 'No active session' });
+      res.status(401).json({ message: "No active session" });
+    }
+  });
+
+  // User info endpoint that works with token parameter
+  app.get("/api/auth/userinfo", async (req, res) => {
+    try {
+      let token = null;
+
+      // Check for token in different places
+      if (req.query.token) {
+        // Token in URL query parameter
+        token = req.query.token;
+      } else if (req.headers["x-access-token"]) {
+        // Token in header
+        token = req.headers["x-access-token"];
+      } else if (req.cookies.token) {
+        // Token in cookie
+        token = req.cookies.token;
+      } else if (req.session.token) {
+        // Token in session
+        token = req.session.token;
+      }
+
+      if (!token) {
+        return res.status(401).json({ message: "No token provided" });
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, config.jwtSecret);
+
+      // Get user info
+      const user = await User.findById(decoded.id).populate("roles", "-__v");
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Format response
+      const authorities = user.roles.map(
+        (role) => `ROLE_${role.name.toUpperCase()}`
+      );
+
+      return res.status(200).json({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        roles: authorities,
+        provider: user.provider || "local",
+      });
+    } catch (err) {
+      console.error("Error getting user info:", err);
+      return res.status(401).json({ message: "Unauthorized" });
     }
   });
 };

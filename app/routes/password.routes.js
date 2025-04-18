@@ -43,12 +43,9 @@ const passwordResetLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-module.exports = function(app) {
-  app.use(function(req, res, next) {
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, Content-Type, Accept"
-    );
+module.exports = function (app) {
+  app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept");
     next();
   });
 
@@ -80,7 +77,7 @@ module.exports = function(app) {
 
   /**
    * @swagger
-   * /api/password/reset:
+   * /api/password/reset/{token}:
    *   post:
    *     summary: Reset password using token
    *     tags: [Password]
@@ -97,9 +94,9 @@ module.exports = function(app) {
    *           schema:
    *             type: object
    *             required:
-   *               - newPassword
+   *               - password
    *             properties:
-   *               newPassword:
+   *               password:
    *                 type: string
    *                 format: password
    *     responses:
@@ -108,10 +105,12 @@ module.exports = function(app) {
    *       400:
    *         description: Invalid or expired token
    */
-  app.post(
-    "/api/password/reset/:token",
-    controller.resetPassword
-  );
+  app.post("/api/password/reset/:token", controller.resetPassword);
+
+  /**
+   * Also support reset via token in the body for backward compatibility
+   */
+  app.post("/api/password/reset", controller.resetPassword);
 
   /**
    * @swagger
