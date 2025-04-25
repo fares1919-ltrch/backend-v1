@@ -423,3 +423,288 @@ exports.deleteAppointment = async (req, res) => {
     res.status(500).send({ message: err.message });
   }
 };
+
+exports.checkAndCreateAppointment = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { dateTime } = req.body;
+
+    console.log("🔍 Checking appointment availability for:", {
+      requestId,
+      dateTime
+    });
+
+    // Validate CPF request exists
+    const cpfRequest = await CpfRequest.findById(requestId);
+    if (!cpfRequest) {
+      return res.status(404).json({ message: "CPF request not found" });
+    }
+
+    // Get the center information
+    const center = await Center.findById(cpfRequest.centerId);
+    if (!center) {
+      return res.status(404).json({ message: "Center not found" });
+    }
+
+    // Parse the dateTime
+    const appointmentDate = new Date(dateTime);
+    
+    // Correct way to get day of week
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayOfWeek = days[appointmentDate.getDay()];
+    const timeString = appointmentDate.toTimeString().slice(0, 5); // HH:MM format
+
+    console.log("📅 Checking availability for:", {
+      day: dayOfWeek,
+      time: timeString,
+      centerWorkingHours: center.workingHours[dayOfWeek]
+    });
+
+    // Check if the center is open on this day
+    if (!center.workingHours[dayOfWeek] || 
+        !center.workingHours[dayOfWeek].start || 
+        !center.workingHours[dayOfWeek].end) {
+      return res.status(400).json({ 
+        message: `The center is not open on ${dayOfWeek}` 
+      });
+    }
+
+    // Check if time is within working hours
+    const startTime = center.workingHours[dayOfWeek].start;
+    const endTime = center.workingHours[dayOfWeek].end;
+    
+    if (timeString < startTime || timeString > endTime) {
+      return res.status(400).json({ 
+        message: `The center is only open from ${startTime} to ${endTime} on ${dayOfWeek}` 
+      });
+    }
+
+    // Check if there's already an appointment at this time
+    const existingAppointment = await Appointment.findOne({
+      location: center._id,
+      appointmentDate: appointmentDate,
+      status: { $ne: 'cancelled' }
+    });
+
+    if (existingAppointment) {
+      return res.status(400).json({ 
+        message: "This time slot is not available" 
+      });
+    }
+
+    // Create new appointment
+    const appointment = new Appointment({
+      userId: cpfRequest.userId,
+      officerId: req.userId, // Current officer's ID
+      cpfRequestId: cpfRequest._id,
+      appointmentDate: appointmentDate,
+      location: center._id,
+      status: "scheduled"
+    });
+
+    await appointment.save();
+
+    // Update CPF request status
+    cpfRequest.status = "approved";
+    cpfRequest.appointmentDate = appointmentDate;
+    await cpfRequest.save();
+
+    console.log("✅ Appointment created successfully:", {
+      appointmentId: appointment._id,
+      requestId: cpfRequest._id,
+      status: appointment.status,
+      date: appointmentDate,
+      dayOfWeek,
+      timeString
+    });
+
+    res.status(200).json({ 
+      message: "Appointment created",
+      appointment: {
+        id: appointment._id,
+        date: appointmentDate,
+        center: center.name,
+        status: appointment.status,
+        cpfRequest: {
+          id: cpfRequest._id,
+          status: cpfRequest.status
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error("❌ Error in checkAndCreateAppointment:", err);
+    res.status(500).json({ 
+      message: "Error processing appointment request",
+      error: err.message 
+    });
+  }
+};
+
+// Schedule appointment and approve CPF request
+exports.createAppointement = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { date } = req.body;
+    
+    if (!date) {
+      return res.status(400).send({ message: "Date is required" });
+    }
+    
+    console.log(`🔄 Scheduling appointment for request ${requestId} on ${date}`);
+    
+    // Find the CPF request
+    const cpfRequest = await db.cpfRequest.findById(requestId);
+    if (!cpfRequest) {
+      return res.status(404).send({ message: "CPF request not found" });
+    }
+    
+    // Check if request already has an appointment
+    const existingAppointment = await db.appointment.findOne({ cpfRequestId: requestId });
+    if (existingAppointment) {
+      return res.status(400).send({ 
+        message: "This CPF request already has an appointment scheduled",
+        existingAppointment: {
+          id: existingAppointment._id,
+          dateTime: existingAppointment.appointmentDate,
+          status: existingAppointment.status
+        }
+      });
+    }
+    
+    // Check if request is already approved
+    if (cpfRequest.status === "approved" || cpfRequest.status === "completed") {
+      return res.status(400).send({ 
+        message: `Cannot schedule appointment: CPF request status is already '${cpfRequest.status}'`
+      });
+    }
+    
+    // Get month in YYYY-MM format
+    const month = date.substring(0, 7);
+    
+    // Find center schedule
+    const centerSchedule = await db.centerSchedule.findOne({
+      centerId: cpfRequest.centerId,
+      month: month
+    });
+    
+    if (!centerSchedule) {
+      return res.status(404).send({ message: "Center schedule not found for this month" });
+    }
+    
+    // Find the specific day
+    const day = centerSchedule.days.find(d => d.date === date);
+    if (!day) {
+      return res.status(404).send({ message: "Date not found in center schedule" });
+    }
+    
+    // Check if day is Sunday or no capacity
+    if (new Date(date).getDay() === 0 || day.capacity === 0) {
+      return res.status(400).send({ message: "This day is not available for appointments" });
+    }
+    
+    // Check if slots are available
+    if (day.reservedSlots >= day.capacity) {
+      return res.status(400).send({ message: "No available slots for this date" });
+    }
+    
+    // Generate time between opening and closing hours
+    const openingTime = day.openingTime;
+    const closingTime = day.closingTime;
+    
+    // Convert opening and closing times to minutes since midnight
+    const [openHour, openMinute] = openingTime.split(':').map(Number);
+    const [closeHour, closeMinute] = closingTime.split(':').map(Number);
+    const openMinutes = openHour * 60 + openMinute;
+    const closeMinutes = closeHour * 60 + closeMinute;
+    
+    // Standard appointment slot duration
+    const slotDuration = 10; // 10 minutes per slot
+    
+    // Get already reserved times for this day and convert to minutes
+    const reservedTimes = day.reservedSlotsDetails.map(detail => {
+      const [hour, minute] = detail.time.split(':').map(Number);
+      return hour * 60 + minute;
+    });
+    
+    // Generate all possible time slots
+    const allPossibleSlots = [];
+    for (let timeMinutes = openMinutes; timeMinutes < closeMinutes - slotDuration; timeMinutes += slotDuration) {
+      allPossibleSlots.push(timeMinutes);
+    }
+    
+    // Filter out the reserved slots and slots too close to reserved times
+    const availableSlots = allPossibleSlots.filter(slotMinutes => {
+      // Check if this slot or any slot too close to it is already reserved
+      return !reservedTimes.some(reservedMinutes => 
+        Math.abs(reservedMinutes - slotMinutes) < slotDuration
+      );
+    });
+    
+    if (availableSlots.length === 0) {
+      return res.status(400).send({ message: "No available time slots for this date" });
+    }
+    
+    // Randomly select one of the available slots
+    const randomIndex = Math.floor(Math.random() * availableSlots.length);
+    const selectedSlotMinutes = availableSlots[randomIndex];
+    
+    // Convert back to hours and minutes
+    const selectedHour = Math.floor(selectedSlotMinutes / 60);
+    const selectedMinute = selectedSlotMinutes % 60;
+    const selectedSlot = `${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
+    
+    console.log(`🕒 Generated appointment time: ${selectedSlot}`);
+    
+    // Create full date-time string and convert to Date object
+    const appointmentDateTime = new Date(`${date}T${selectedSlot}:00`);
+    
+    // Create appointment
+    const appointment = new db.appointment({
+      userId: cpfRequest.userId,
+      officerId: req.userId, // Current user (officer)
+      cpfRequestId: cpfRequest._id,
+      appointmentDate: appointmentDateTime,
+      location: cpfRequest.centerId,
+      status: "scheduled"
+    });
+    
+    const savedAppointment = await appointment.save();
+    console.log(`✅ Appointment created with ID: ${savedAppointment._id}`);
+    
+    // Update day in center schedule
+    day.reservedSlots += 1;
+    day.reservedSlotsDetails.push({
+      time: selectedSlot,
+      appointmentId: savedAppointment._id,
+      userId: cpfRequest.userId
+    });
+    
+    await centerSchedule.save();
+    console.log(`✅ Center schedule updated for ${date} with time ${selectedSlot}`);
+    
+    // Update CPF request status
+    cpfRequest.status = "approved";
+    cpfRequest.appointmentDate = appointmentDateTime;
+    await cpfRequest.save();
+    console.log(`✅ CPF request ${requestId} status updated to approved`);
+    
+    res.status(200).send({
+      message: "Appointment scheduled successfully",
+      appointment: {
+        id: savedAppointment._id,
+        dateTime: appointmentDateTime,
+        time: selectedSlot,
+        status: "scheduled"
+      },
+      cpfRequest: {
+        id: cpfRequest._id,
+        status: cpfRequest.status
+      }
+    });
+    
+  } catch (err) {
+    console.error(`❌ Error scheduling appointment: ${err.message}`);
+    res.status(500).send({ message: err.message });
+  }
+};

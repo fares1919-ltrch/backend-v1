@@ -302,32 +302,99 @@ exports.updateDecision = async (req, res) => {
   }
 };
 
-// Delete CPF request (user can only delete their own pending requests)
+// Delete CPF request by ID
 exports.deleteRequest = async (req, res) => {
   try {
-    const request = await CpfRequest.findById(req.params.id);
-
-    if (!request) {
-      return res.status(404).send({ message: "Request not found" });
-    }
-
-    // Check if user has access to this request
-    if (request.userId.toString() !== req.userId) {
-      return res.status(403).send({ message: "Not authorized to delete this request" });
-    }
-
-    // Only allow deletion of pending requests
-    if (request.status !== "pending") {
-      return res.status(400).send({
-        message: "Only pending requests can be deleted"
+    const { requestId } = req.params;
+    
+    console.log(`🗑️ Attempting to delete CPF request with ID: ${requestId}`);
+    
+    // Find the request first to confirm it exists
+    const cpfRequest = await db.cpfRequest.findById(requestId);
+    
+    if (!cpfRequest) {
+      console.log(`❌ CPF request with ID ${requestId} not found`);
+      return res.status(404).send({ 
+        message: "CPF request not found" 
       });
     }
-
+    
+    // Check if there's an associated appointment
+    const appointment = await db.appointment.findOne({ cpfRequestId: requestId });
+    
+    if (appointment) {
+      console.log(`🔄 Deleting associated appointment ID: ${appointment._id}`);
+      await db.appointment.findByIdAndDelete(appointment._id);
+    }
+    
     // Delete the request
-    await CpfRequest.findByIdAndDelete(req.params.id);
-
-    res.status(200).send({ message: "Request deleted successfully" });
+    await db.cpfRequest.findByIdAndDelete(requestId);
+    
+    console.log(`✅ Successfully deleted CPF request with ID: ${requestId}`);
+    
+    res.status(200).send({ 
+      message: "CPF request deleted successfully",
+      deletedRequestId: requestId,
+      appointmentDeleted: appointment ? true : false
+    });
+    
   } catch (err) {
+    console.error(`❌ Error deleting CPF request: ${err.message}`);
+    res.status(500).send({ 
+      message: "Error deleting CPF request", 
+      error: err.message 
+    });
+  }
+};
+
+exports.PendingReq = async (req, res) => {
+  try {
+    console.log("🔍 Fetching pending and approved CPF requests...");
+    
+    const allRequests = await CpfRequest.find({
+      status: 'pending'
+    })
+      .populate({
+        path: "userId",
+        select: "username"
+      })
+      .populate({
+        path: "centerId",
+        select: "name"
+      })
+      .select('_id userId address status centerId createdAt')
+      .sort({ createdAt: -1 });
+
+    console.log(`📊 Found ${allRequests.length} requests (pending and approved)`);
+
+    // Transform to get exactly the fields we want
+    const formattedRequests = allRequests.map(request => ({
+      requestId: request._id,
+      username: request.userId?.username || 'N/A',
+      userId: request.userId?._id || 'N/A',
+      address: request.address,
+      status: request.status,
+      centerId: request.centerId?._id || 'N/A',
+      centerName: request.centerId?.name || 'N/A',
+      createdAt: request.createdAt
+    }));
+
+    // Debug log to verify the data format
+    formattedRequests.forEach((req, index) => {
+      console.log(`\nRequest #${index + 1}:`, {
+        requestId: req.requestId,
+        username: req.username,
+        status: req.status,
+        centerName: req.centerName
+      });
+    });
+
+    res.status(200).json({
+      requests: formattedRequests,
+      total: formattedRequests.length
+    });
+  } catch (err) {
+    console.error("❌ Error:", err.message);
     res.status(500).send({ message: err.message });
   }
 };

@@ -1,6 +1,8 @@
 const db = require("../models");
 const Center = db.center;
 const Appointment = db.appointment;
+const createOrUpdateCenterSchedule = require("../utils/centerSchedule");
+const moment = require('moment');
 
 const controller = {};
 
@@ -80,35 +82,120 @@ controller.getCenterById = async (req, res) => {
 // Create new center (Officer only)
 controller.createCenter = async (req, res) => {
   try {
-    const { name, address, region, capacity, workingHours } = req.body;
+    console.log("\n🔍 DEBUG: Starting center creation process...");
+    console.log("📋 Request body:", JSON.stringify(req.body, null, 2));
+
+    const { name, address, region, capacity, workingHours, services, contact } = req.body;
 
     // Validate required fields
-    if (
-      !name ||
-      !address ||
-      !region ||
-      !capacity ||
-      !workingHours ||
-      address.lat === undefined ||
-      address.lon === undefined
-    ) {
+    console.log("🧪 Validating required fields...");
+    
+    if (!name) console.log("❌ Missing required field: name");
+    if (!address) console.log("❌ Missing required field: address");
+    if (!region) console.log("❌ Missing required field: region");
+    
+    if (address) {
+      if (address.lat === undefined) console.log("❌ Missing required field: address.lat");
+      if (address.lon === undefined) console.log("❌ Missing required field: address.lon");
+      console.log("🌍 Address coordinates:", { lat: address.lat, lon: address.lon });
+    } else {
+      console.log("❌ Address object is missing entirely");
+    }
+
+    // Log validation check
+    const isValid = name && address && region && address.lat !== undefined && address.lon !== undefined;
+    console.log(`✅ Primary validation ${isValid ? 'passed' : 'failed'}`);
+
+    if (!isValid) {
       return res.status(400).send({
-        message: "Missing required fields",
+        message: "Missing required fields: name, address, or region",
       });
     }
 
+    // Create default working hours if not provided
+    console.log("🕒 Checking working hours...");
+    const defaultWorkingHours = {
+      monday: { start: "08:00", end: "16:00" },
+      tuesday: { start: "08:00", end: "16:00" },
+      wednesday: { start: "08:00", end: "16:00" },
+      thursday: { start: "08:00", end: "16:00" },
+      friday: { start: "08:00", end: "13:00" },
+      saturday: { start: "09:00", end: "12:00" },
+      sunday: { start: "", end: "" }
+    };
+
+    // Merge provided working hours with defaults for any missing days
+    const mergedWorkingHours = {
+      ...defaultWorkingHours,
+      ...(workingHours || {})
+    };
+    
+    // Ensure all required days have both start and end
+    for (const day of ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']) {
+      if (!mergedWorkingHours[day]) {
+        mergedWorkingHours[day] = defaultWorkingHours[day];
+      } else {
+        if (!mergedWorkingHours[day].start) {
+          mergedWorkingHours[day].start = defaultWorkingHours[day].start;
+        }
+        if (!mergedWorkingHours[day].end) {
+          mergedWorkingHours[day].end = defaultWorkingHours[day].end;
+        }
+      }
+    }
+
+    console.log("✅ Working hours prepared:", mergedWorkingHours);
+
+    // Prepare default capacity if not provided
+    const defaultCapacity = {
+      daily: 48,
+      hourly: 6
+    };
+
+    // Prepare center object
+    console.log("🔧 Creating center object...");
     const center = new Center({
       name,
       address,
       region,
-      capacity,
-      workingHours,
-      status: "active",
+      capacity: capacity || defaultCapacity,
+      workingHours: mergedWorkingHours,
+      services: services || ["cpf", "biometric", "document"],
+      contact: contact || { phone: "", email: "" },
+      status: "active"
     });
 
+    console.log("💾 Saving center to database...");
     const savedCenter = await center.save();
+    console.log(`✅ Center created with ID: ${savedCenter._id}`);
+
+    // Generate center schedule
+    console.log("📅 Generating center schedule...");
+    try {
+      await createOrUpdateCenterSchedule(savedCenter._id);
+      console.log("✅ Center schedule generated successfully");
+    } catch (scheduleErr) {
+      console.error("⚠️ Error generating center schedule:", scheduleErr.message);
+      // Continue anyway since the center was created
+    }
+
+    console.log("🏁 Center creation process completed successfully");
     res.status(201).send(savedCenter);
   } catch (err) {
+    console.error("❌ ERROR in createCenter:", {
+      message: err.message,
+      stack: err.stack,
+      code: err.code
+    });
+    
+    // Special handling for MongoDB duplicate key error
+    if (err.code === 11000) {
+      console.error("💡 Duplicate key error - center with this name may already exist");
+      return res.status(400).send({ 
+        message: "A center with this name already exists"
+      });
+    }
+    
     res.status(500).send({ message: err.message });
   }
 };
@@ -225,6 +312,73 @@ controller.getCenterStats = async (req, res) => {
       },
     });
   } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Get center available slots
+controller.getAvailableDays = async (req, res) => {
+  try {
+    console.log("Getting available days for center:", req.params.id);
+    const { centerId } = req.params;
+    const currentMonth = moment().format('YYYY-MM');
+    
+    // Find the schedule for current month
+    const schedule = await db.centerSchedule.findOne({
+      centerId,
+      month: currentMonth
+    });
+    
+    if (!schedule) {
+      return res.status(404).send({ message: "No schedule found for this center" });
+    }
+    
+    // Transform the days array - include all days including Sundays
+    const availableDays = schedule.days.map(day => {
+      // Check if it's Sunday (first character of date is the day of week)
+      const date = new Date(day.date);
+      const isSunday = date.getDay() === 0;
+      
+      return {
+        date: day.date,
+        availableSlots: isSunday ? -1 : (day.capacity - day.reservedSlots)
+      };
+    });
+    console.log("Available days:", availableDays);
+    
+    res.status(200).send(availableDays);
+  } catch (err) {
+    console.error(`Error getting available days: ${err.message}`);
     res.status(500).send({ message: err.message });
   }
 };

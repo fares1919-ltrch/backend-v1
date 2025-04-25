@@ -454,4 +454,39 @@ module.exports = function(app) {
     [authJwt.verifyToken, authJwt.isOfficer],
     controller.getCenterStats
   );
+
+  /**
+   * @swagger
+   * /api/centers/{centerId}/available-days:
+   *   get:
+   *     summary: Get available days for a center
+   *     tags: [Centers]
+   *     parameters:
+   *       - in: path
+   *         name: centerId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of available days
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   id:
+   *                     type: string
+   *                   date:
+   *                     type: string
+   *                     format: date
+   *                   availableSlots:
+   *                     type: integer
+   */
+  app.get(
+    "/api/centers/:centerId/available-days",
+    controller.getAvailableDays
+  );
 };

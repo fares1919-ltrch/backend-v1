@@ -370,4 +370,109 @@ module.exports = function(app) {
     ],
     controller.deleteAppointment
   );
+
+  /**
+   * @swagger
+   * /api/appointments/check-and-create/{requestId}:
+   *   post:
+   *     summary: Check availability and create appointment for a CPF request
+   *     tags: [Appointments]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: requestId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID of the CPF request
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - dateTime
+   *             properties:
+   *               dateTime:
+   *                 type: string
+   *                 format: date-time
+   *                 description: Proposed appointment date and time
+   *     responses:
+   *       200:
+   *         description: Appointment created successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 message:
+   *                   type: string
+   *                 appointment:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                     date:
+   *                       type: string
+   *                       format: date-time
+   *                     center:
+   *                       type: string
+   *                     status:
+   *                       type: string
+   *                     cpfRequest:
+   *                       type: object
+   *                       properties:
+   *                         id:
+   *                           type: string
+   *                         status:
+   *                           type: string
+   *       400:
+   *         description: Time slot not available or outside working hours
+   *       404:
+   *         description: CPF request or center not found
+   */
+  app.post(
+    "/api/appointments/check-and-create/:requestId",
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.checkAndCreateAppointment
+  );
+
+  /**
+   * @swagger
+   * /api/appointments/schedule/{requestId}:
+   *   post:
+   *     summary: Schedule appointment for a CPF request
+   *     tags: [Appointments]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: requestId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - date
+   *             properties:
+   *               date:
+   *                 type: string
+   *                 format: date
+   *                 example: "2024-05-15"
+   *     responses:
+   *       200:
+   *         description: Appointment scheduled successfully
+   */
+  app.post(
+    "/api/appointments/schedule/:requestId",
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.createAppointement
+  );
 };

@@ -14,6 +14,7 @@ db.appointment = require("./appointment.model");
 db.biometricData = require("./biometricData.model");
 db.notification = require("./notification.model");
 db.center = require("./center.model");
+db.centerSchedule = require("./centerSchedule.model");
 
 db.ROLES = ["user", "admin", "officer", "manager"];
 

@@ -12,6 +12,9 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
 const cookieParser = require("cookie-parser");
 const MongoStore = require("connect-mongo");
+const scheduleMonthlyUpdate = require("./app/cron/generateMonthlySchedules");
+const setupScheduledTasks = require('./app/utils/scheduleTasks');
+
 const {
   errorHandler,
   notFoundHandler,
@@ -19,6 +22,10 @@ const {
 const config = require("./app/config/config");
 require("./app/config/passport"); // Load Passport config
 require("dotenv").config();
+
+
+
+scheduleMonthlyUpdate(); // lance le cron automatiquement
 
 // Initialize Express application
 const app = express();
@@ -158,13 +165,19 @@ const Role = db.role;
 
 // Connect to MongoDB
 db.mongoose
-  .connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`)
+  .connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
   .then(() => {
     console.log("Connected to the database!");
     initial();
+    
+    // Configurer les tâches planifiées après la connexion à la base de données
+    setupScheduledTasks();
   })
   .catch((err) => {
-    console.error("Connection error", err);
+    console.error("Cannot connect to the database!", err);
     process.exit();
   });
 
