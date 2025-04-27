@@ -6,9 +6,7 @@ const createOrUpdateCenterSchedule = require("../utils/centerSchedule");
 
 // Connect to DB (tu peux adapter l’URI à ton projet)
 const connectDB = async () => {
-  await mongoose.connect("mongodb://localhost:27017/identitySecureDB", {
-    
-  });
+  await mongoose.connect("mongodb://localhost:27017/fares_db", {});
   console.log("✅ Connected to MongoDB");
 };
 
