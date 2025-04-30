@@ -347,54 +347,32 @@ exports.deleteRequest = async (req, res) => {
   }
 };
 
-exports.PendingReq = async (req, res) => {
+// Get both "pending" and "approved" requests
+exports.PendingAndApprovedReq = async (req, res) => {
   try {
-    console.log("🔍 Fetching pending and approved CPF requests...");
-    
-    const allRequests = await CpfRequest.find({
-      status: 'pending'
+    const requests = await db.cpfRequest.find({
+      status: { $in: ["pending", "approved"] }
     })
-      .populate({
-        path: "userId",
-        select: "username"
-      })
-      .populate({
-        path: "centerId",
-        select: "name"
-      })
-      .select('_id userId address status centerId createdAt')
+      .populate("userId", "username")
+      .populate("centerId", "name")
       .sort({ createdAt: -1 });
 
-    console.log(`📊 Found ${allRequests.length} requests (pending and approved)`);
-
-    // Transform to get exactly the fields we want
-    const formattedRequests = allRequests.map(request => ({
-      requestId: request._id,
-      username: request.userId?.username || 'N/A',
-      userId: request.userId?._id || 'N/A',
-      address: request.address,
-      status: request.status,
-      centerId: request.centerId?._id || 'N/A',
-      centerName: request.centerId?.name || 'N/A',
-      createdAt: request.createdAt
+    const formatted = requests.map(r => ({
+      requestId: r._id,
+      username: r.userId?.username,
+      userId: r.userId?._id,
+      address: r.address,
+      status: r.status,
+      centerId: r.centerId?._id,
+      centerName: r.centerId?.name,
+      createdAt: r.createdAt
     }));
 
-    // Debug log to verify the data format
-    formattedRequests.forEach((req, index) => {
-      console.log(`\nRequest #${index + 1}:`, {
-        requestId: req.requestId,
-        username: req.username,
-        status: req.status,
-        centerName: req.centerName
-      });
-    });
-
     res.status(200).json({
-      requests: formattedRequests,
-      total: formattedRequests.length
+      requests: formatted,
+      total: formatted.length
     });
   } catch (err) {
-    console.error("❌ Error:", err.message);
     res.status(500).send({ message: err.message });
   }
 };

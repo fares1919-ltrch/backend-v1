@@ -72,42 +72,6 @@ module.exports = function(app) {
     next();
   });
 
-  /**
-   * @swagger
-   * /api/appointments/slots:
-   *   get:
-   *     summary: Get available appointment slots
-   *     tags: [Appointments]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: query
-   *         name: date
-   *         schema:
-   *           type: string
-   *           format: date
-   *         description: Date to check for slots
-   *       - in: query
-   *         name: centerId
-   *         schema:
-   *           type: string
-   *         description: ID of the center
-   *     responses:
-   *       200:
-   *         description: List of available slots
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 type: string
-   *                 format: date-time
-   */
-  app.get(
-    "/api/appointments/slots",
-    [authJwt.verifyToken],
-    controller.getAvailableSlots
-  );
 
   /**
    * @swagger
@@ -133,36 +97,8 @@ module.exports = function(app) {
     controller.getUserAppointment
   );
 
-  /**
-   * @swagger
-   * /api/appointments:
-   *   post:
-   *     summary: Create new appointment (officer only)
-   *     tags: [Appointments]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             $ref: '#/components/schemas/Appointment'
-   *     responses:
-   *       201:
-   *         description: Appointment created successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/Appointment'
-   */
-  app.post(
-    "/api/appointments",
-    [
-      authJwt.verifyToken,
-      authJwt.isOfficer
-    ],
-    controller.create
-  );
+  
+  
 
   /**
    * @swagger
@@ -439,40 +375,42 @@ module.exports = function(app) {
     controller.checkAndCreateAppointment
   );
 
-  /**
-   * @swagger
-   * /api/appointments/schedule/{requestId}:
-   *   post:
-   *     summary: Schedule appointment for a CPF request
-   *     tags: [Appointments]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: requestId
-   *         required: true
-   *         schema:
-   *           type: string
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - date
-   *             properties:
-   *               date:
-   *                 type: string
-   *                 format: date
-   *                 example: "2024-05-15"
-   *     responses:
-   *       200:
-   *         description: Appointment scheduled successfully
-   */
+ 
   app.post(
-    "/api/appointments/schedule/:requestId",
+    "/api/appointments/createScheduleAppointment/:requestId",
     [authJwt.verifyToken, authJwt.isOfficer],
-    controller.createAppointement
+    controller.create
+  );
+
+  app.put(
+    "/api/appointments/reschedule/:requestId",
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.rescheduleAppointment
+  );
+
+
+  app.get('/api/appointments/today',
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.getTodayAppointments
+  );
+
+  app.get('/api/appointments/upcoming',
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.getUpcomingAppointments
+  );
+
+  app.put('/api/appointments/cancel/:appointmentId',
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.cancelAppointment
+  );
+
+  app.put('/api/appointments/complete/:appointmentId',
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.completeAppointment
+  );
+
+  app.put('/api/appointments/missed/:appointmentId',
+    [authJwt.verifyToken, authJwt.isOfficer],
+    controller.missAppointment
   );
 };

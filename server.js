@@ -194,7 +194,7 @@ require("./app/routes/user.routes")(app);
 require("./app/routes/profile.routes")(app);
 require("./app/routes/cpfRequest.routes")(app);
 require("./app/routes/appointment.routes")(app);
-require("./app/routes/biometricData.routes")(app);
+// require("./app/routes/biometricData.routes")(app);
 require("./app/routes/cpfCredential.routes")(app);
 require("./app/routes/notification.routes")(app);
 require("./app/routes/center.routes")(app);

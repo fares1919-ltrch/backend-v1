@@ -708,3 +708,198 @@ exports.createAppointement = async (req, res) => {
     res.status(500).send({ message: err.message });
   }
 };
+
+// Get upcoming appointments
+exports.getUpcomingAppointments = async (req, res) => {
+  try {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1); // Set to tomorrow
+    tomorrow.setHours(0, 0, 0, 0); // Reset time to midnight
+    
+    const appointments = await Appointment.find({
+      appointmentDate: { $gte: tomorrow },
+    })
+    .populate('userId', 'firstName lastName')
+    .populate('location', 'name')
+    .populate('cpfRequestId')
+    .sort({ appointmentDate: 1 });
+
+    const formattedAppointments = appointments.map(appointment => {
+      const time = appointment.appointmentDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      const name = appointment.userId?.firstName + " " + appointment.userId?.lastName;
+      return {
+        appointmentId: appointment._id,
+        userId: appointment.userId?._id,
+        status: appointment.status,
+        service: appointment.service ,
+        time: time,
+        date: appointment.appointmentDate.toISOString().split('T')[0],
+        centerName: appointment.location?.name ,
+        name: name,
+      };
+    });
+
+    res.status(200).json(formattedAppointments);
+  } catch (error) {
+    console.error('Error fetching upcoming appointments:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update appointment status to cancelled
+exports.cancelAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Update appointment status
+    appointment.status = "cancelled";
+    appointment.updatedAt = new Date();
+    appointment.updatedBy = req.userId;
+
+    await appointment.save();
+
+    res.status(200).json({
+      message: "Appointment cancelled successfully",
+      appointment: {
+        id: appointment._id,
+        status: appointment.status,
+        updatedAt: appointment.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error cancelling appointment:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update appointment status to completed
+exports.completeAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Update appointment status
+    appointment.status = "completed";
+    appointment.updatedAt = new Date();
+    appointment.updatedBy = req.userId;
+
+    await appointment.save();
+
+    // If appointment is completed, update CPF request status
+    if (appointment.cpfRequestId) {
+      const cpfRequest = await CpfRequest.findById(appointment.cpfRequestId);
+      if (cpfRequest && cpfRequest.status !== "completed") {
+        cpfRequest.status = "completed";
+        await cpfRequest.save();
+      }
+    }
+
+    res.status(200).json({
+      message: "Appointment completed successfully",
+      appointment: {
+        id: appointment._id,
+        status: appointment.status,
+        updatedAt: appointment.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error completing appointment:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update appointment status to missed
+exports.missAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Update appointment status
+    appointment.status = "missed";
+    appointment.updatedAt = new Date();
+    appointment.updatedBy = req.userId;
+
+    await appointment.save();
+
+    res.status(200).json({
+      message: "Appointment marked as missed",
+      appointment: {
+        id: appointment._id,
+        status: appointment.status,
+        updatedAt: appointment.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error marking appointment as missed:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get today's appointments
+exports.getTodayAppointments = async (req, res) => {
+  try {
+    // Get today's date boundaries
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    // Query appointments with appointmentDate between startOfDay and endOfDay
+    const todayAppointments = await Appointment.find({
+      appointmentDate: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    })
+    .populate('userId', 'firstName lastName')
+    .populate('location', 'name')
+    .populate('cpfRequestId');
+
+    // Format the response
+    const formattedAppointments = todayAppointments.map(appointment => {
+      // Convert time to 12-hour format
+      const time = appointment.appointmentDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      const name = appointment.userId?.firstName + " " + appointment.userId?.lastName;
+      return {
+        appointmentId: appointment._id,
+        userId: appointment.userId?._id,
+        status: appointment.status,
+        service: appointment.service ,
+        time: time,
+        date: appointment.appointmentDate.toISOString().split('T')[0],
+        centerName: appointment.location?.name ,
+        name: name,
+      };
+    });
+
+    res.status(200).json(formattedAppointments);
+  } catch (error) {
+    console.error('Error fetching today\'s appointments:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

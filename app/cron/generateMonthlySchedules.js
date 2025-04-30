@@ -9,7 +9,6 @@ const connectDB = async () => {
   await mongoose.connect("mongodb://localhost:27017/identitySecureDB", {
     
   });
-  console.log("✅ Connected to MongoDB");
 };
 
 const scheduleMonthlyUpdate = async () => {
@@ -17,14 +16,12 @@ const scheduleMonthlyUpdate = async () => {
 
   // Cron: Tous les 1ers du mois à minuit
   cron.schedule("0 0 1 * *", async () => {
-    console.log("📅 Début de la mise à jour mensuelle des schedules...");
     const centers = await Center.find();
 
     for (const center of centers) {
       await createOrUpdateCenterSchedule(center._id);
     }
 
-    console.log("✅ Tous les centerSchedule ont été mis à jour pour ce mois.");
   });
 };
 

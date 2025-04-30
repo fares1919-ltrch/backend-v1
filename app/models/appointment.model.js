@@ -23,6 +23,10 @@ const Appointment = mongoose.model(
         type: Date,
         required: true,
       },
+      service: {
+        type: String,
+        default: "CPF Submission Data",
+      },
       status: {
         type: String,
         enum: ["scheduled", "completed", "cancelled", "missed"],
