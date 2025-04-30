@@ -14,9 +14,9 @@ const CpfCredential = mongoose.model(
         ref: "CpfRequest",
         required: true,
       },
-      biometricDataId: {
+      biometricId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "BiometricData",
+        ref: "Biometric",
         required: true,
       },
       credentialNumber: {

@@ -157,6 +157,21 @@ app.use(
   express.static(path.join(__dirname, "app/middlewares/uploads"))
 );
 
+// Serve static files from biometrics uploads directory with CORS
+app.use(
+  "/biometrics",
+  (req, res, next) => {
+    res.header(
+      "Access-Control-Allow-Origin",
+      process.env.CLIENT_URL || "http://localhost:4200"
+    );
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(__dirname, "app/middlewares/uploads/biometrics"))
+);
+
 // ===== DATABASE CONNECTION =====
 
 // Import database models
@@ -192,14 +207,14 @@ app.get("/", (req, res) => {
 require("./app/routes/auth.routes")(app);
 require("./app/routes/user.routes")(app);
 require("./app/routes/profile.routes")(app);
+require("./app/routes/center.routes")(app);
+require("./app/routes/biometric.routes")(app);
+require("./app/routes/cpfCredential.routes")(app);
 require("./app/routes/cpfRequest.routes")(app);
 require("./app/routes/appointment.routes")(app);
-// require("./app/routes/biometricData.routes")(app);
-require("./app/routes/cpfCredential.routes")(app);
 require("./app/routes/notification.routes")(app);
-require("./app/routes/center.routes")(app);
-require("./app/routes/stats.routes")(app);
 require("./app/routes/password.routes")(app);
+require("./app/routes/stats.routes")(app);
 
 // ===== API DOCUMENTATION =====
 

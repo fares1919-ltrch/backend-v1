@@ -1,6 +1,6 @@
 const db = require("../models");
 const CpfRequest = db.cpfRequest;
-const BiometricData = db.biometricData;
+const Biometric = db.biometric;
 const Appointment = db.appointment;
 const Center = db.center;
 
@@ -43,12 +43,22 @@ const getBiometricStats = async (req, res) => {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
-    const biometrics = await BiometricData.find(query);
+    const biometrics = await Biometric.find(query);
+    
+    // Count items with non-null/undefined fingerprints and iris images
+    const withFingerprints = biometrics.filter(b => {
+      return Object.values(b.imageFingerprints).some(v => v !== null && v !== undefined);
+    }).length;
+    
+    const withIris = biometrics.filter(b => {
+      return Object.values(b.imageIris).some(v => v !== null && v !== undefined);
+    }).length;
+    
     const stats = {
       total: biometrics.length,
-      withFingerprints: biometrics.filter(b => b.fingerprints && b.fingerprints.length > 0).length,
-      withFace: biometrics.filter(b => b.faceImage).length,
-      withIris: biometrics.filter(b => b.irisScans && b.irisScans.length > 0).length
+      withFingerprints,
+      withFace: biometrics.filter(b => b.imageFace).length,
+      withIris
     };
 
     res.send(stats);
@@ -118,7 +128,7 @@ const getSystemOverview = async (req, res) => {
       CpfRequest.countDocuments(),
       Appointment.countDocuments(),
       Center.countDocuments(),
-      BiometricData.countDocuments()
+      Biometric.countDocuments()
     ]);
 
     res.send({

@@ -44,6 +44,11 @@ const User = mongoose.model(
         unique: true,
         sparse: true,
       },
+      // Biometric data reference
+      biometric: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Biometric",
+      },
       // Session management
       activeSessions: [
         {
