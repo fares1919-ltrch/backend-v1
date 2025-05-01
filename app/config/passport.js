@@ -18,6 +18,8 @@ passport.use(
       tokenUri: google.tokenUri,
       passReqToCallback: true,
       scope: ["profile", "email"],
+      prompt: "select_account", // Always show account selection screen
+      accessType: "offline", // Request refresh token
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
@@ -34,24 +36,45 @@ passport.use(
             throw new Error("Default user role not found");
           }
 
+          // Create a new user with Google OAuth
           user = new User({
             username: profile.displayName || email.split("@")[0],
             email,
-            provider: "google",
+            provider: "google", // This is important to skip password validation
             googleId: profile.id,
             roles: [userRole._id],
             firstName: profile.name?.givenName,
             lastName: profile.name?.familyName,
             photo: profile.photos?.[0]?.value,
+            // No password needed for OAuth users
           });
           await user.save();
         } else {
-          // Ensure provider is set to google even for existing users
-          if (user.provider !== "google") {
-            user.provider = "google";
+          // Update existing user with Google info
+          if (!user.googleId) {
             user.googleId = profile.id;
+
+            // If this was a local account, keep the provider as is
+            // but add the Google ID for future logins
+            if (user.provider === "local") {
+              console.log("Linked Google account to existing local account");
+            } else {
+              user.provider = "google";
+              console.log("Updated existing user with Google provider");
+            }
+
+            // Update profile info if missing
+            if (!user.firstName && profile.name?.givenName) {
+              user.firstName = profile.name.givenName;
+            }
+            if (!user.lastName && profile.name?.familyName) {
+              user.lastName = profile.name.familyName;
+            }
+            if (!user.photo && profile.photos?.[0]?.value) {
+              user.photo = profile.photos[0].value;
+            }
+
             await user.save();
-            console.log("Updated existing user with Google provider");
           }
         }
 

@@ -6,7 +6,12 @@ const User = mongoose.model(
     {
       username: { type: String, required: true },
       email: { type: String, required: true },
-      password: { type: String, required: true },
+      password: {
+        type: String,
+        required: function () {
+          return this.provider === "local" || !this.provider;
+        },
+      },
       resetPasswordToken: String,
       resetPasswordExpires: Date,
       provider: {

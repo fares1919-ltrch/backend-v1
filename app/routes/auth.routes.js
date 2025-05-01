@@ -261,11 +261,28 @@ module.exports = function (app) {
   app.post("/api/auth/refreshtoken", refreshTokenController.createRefreshToken);
 
   // OAuth Routes
+  // Clear any existing Google OAuth sessions before starting a new authentication flow
   app.get(
     "/api/auth/google",
+    (req, res, next) => {
+      // Clear any existing session data
+      if (req.session) {
+        req.session.destroy();
+      }
+
+      // Clear any existing cookies
+      res.clearCookie("token");
+      res.clearCookie("refreshToken");
+      res.clearCookie("connect.sid");
+      res.clearCookie("sessionId");
+
+      next();
+    },
     passport.authenticate("google", {
       scope: ["profile", "email"],
       session: true,
+      prompt: "select_account", // Force Google to always show the account selection screen
+      accessType: "offline", // Request a refresh token
     })
   );
 
@@ -274,6 +291,7 @@ module.exports = function (app) {
     passport.authenticate("google", {
       failureRedirect: "/api/auth/login?error=oauth_error",
       session: true,
+      prompt: "select_account", // Ensure account selection is prompted
     }),
     controller.googleCallback
   );
