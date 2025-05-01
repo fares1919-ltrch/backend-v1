@@ -1,138 +1,8 @@
-const multer = require('multer');
-const path = require('path');
-const crypto = require('crypto');
-const fs = require('fs').promises;
 const db = require("../models");
 const User = db.user;
 const Biometric = db.biometric;
-const config = require('../config/biometric.config');
-
-// Define base path for uploads
-const BASE_UPLOAD_PATH = 'app/middlewares/uploads/biometrics';
-
-// Configure storage for biometric image uploads
-const storage = multer.diskStorage({
-  destination: async function (req, file, cb) {
-    let type = '';
-    
-    // Determine the type of biometric data
-    if (file.fieldname === 'imageFace') {
-      type = 'faces';
-    } else if (file.fieldname.startsWith('imageIris')) {
-      type = 'iris';
-    } else if (file.fieldname.startsWith('imageFingerprint')) {
-      type = 'fingerprints';
-    }
-    
-    // Create full path
-    const dir = path.join(BASE_UPLOAD_PATH, type);
-    
-    try {
-      await fs.mkdir(dir, { recursive: true });
-      cb(null, dir);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: function (req, file, cb) {
-    // Generate a secure random filename
-    crypto.randomBytes(16, (err, raw) => {
-      if (err) return cb(err);
-      
-      // Preserve original extension
-      cb(null, raw.toString('hex') + path.extname(file.originalname));
-    });
-  }
-});
-
-// File filter for biometric data
-const fileFilter = (req, file, cb) => {
-  let type = '';
-  
-  // Determine the type of biometric data
-  if (file.fieldname === 'imageFace') {
-    type = 'face';
-  } else if (file.fieldname.startsWith('imageIris')) {
-    type = 'iris';
-  } else if (file.fieldname.startsWith('imageFingerprint')) {
-    type = 'fingerprint';
-  }
-  
-  const allowedFormats = config.quality[type]?.allowedFormats || [];
-  
-  if (allowedFormats.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error(`Invalid file format. Allowed formats for ${type}: ${allowedFormats.join(', ')}`));
-  }
-};
-
-// Create multer upload instance
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max file size
-    files: 13 // 1 face + 2 iris + 10 fingerprints
-  }
-});
-
-// Configure fields for the upload
-const uploadFields = [
-  { name: 'imageFace', maxCount: 1 },
-  { name: 'imageIrisLeft', maxCount: 1 },
-  { name: 'imageIrisRight', maxCount: 1 },
-  { name: 'imageFingerprintRightThumb', maxCount: 1 },
-  { name: 'imageFingerprintRightIndex', maxCount: 1 },
-  { name: 'imageFingerprintRightMiddle', maxCount: 1 },
-  { name: 'imageFingerprintRightRing', maxCount: 1 },
-  { name: 'imageFingerprintRightLittle', maxCount: 1 },
-  { name: 'imageFingerprintLeftThumb', maxCount: 1 },
-  { name: 'imageFingerprintLeftIndex', maxCount: 1 },
-  { name: 'imageFingerprintLeftMiddle', maxCount: 1 },
-  { name: 'imageFingerprintLeftRing', maxCount: 1 },
-  { name: 'imageFingerprintLeftLittle', maxCount: 1 }
-];
-
-// Middleware for handling biometric uploads
-exports.uploadBiometricImages = (req, res, next) => {
-  upload.fields(uploadFields)(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      return res.status(400).json({
-        message: 'File upload error',
-        error: err.message
-      });
-    } else if (err) {
-      return res.status(500).json({
-        message: 'Server error during file upload',
-        error: err.message
-      });
-    }
-    next();
-  });
-};
-
-// Helper function to clean up uploaded files
-const cleanupUploadedFiles = async (files) => {
-  try {
-    if (!files) return;
-    
-    // Iterate through all file fields
-    for (const fieldFiles of Object.values(files)) {
-      // Iterate through files in each field
-      for (const file of fieldFiles) {
-        if (file && file.path) {
-          await fs.unlink(file.path).catch(() => {
-            // Ignore errors during cleanup
-            console.log(`Failed to delete file: ${file.path}`);
-          });
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error during file cleanup:', error);
-  }
-};
+const Appointment = db.appointment;
+const biometricConfig = require('../config/biometric.config');
 
 // Controller to create a new biometric entry
 exports.createBiometric = async (req, res) => {
@@ -144,7 +14,7 @@ exports.createBiometric = async (req, res) => {
     // Verify userId exists in request
     if (!req.body.userId) {
       // Clean up any uploaded files
-      await cleanupUploadedFiles(req.files);
+      await biometricConfig.cleanupUploadedFiles(req.files);
       return res.status(400).json({ message: "UserId is required" });
     }
 
@@ -152,7 +22,7 @@ exports.createBiometric = async (req, res) => {
     const user = await User.findById(req.body.userId);
     if (!user) {
       // Clean up any uploaded files
-      await cleanupUploadedFiles(req.files);
+      await biometricConfig.cleanupUploadedFiles(req.files);
       return res.status(404).json({ message: "User not found" });
     }
     
@@ -160,7 +30,7 @@ exports.createBiometric = async (req, res) => {
     const existingBiometric = await Biometric.findOne({ userId: req.body.userId });
     if (existingBiometric) {
       // Clean up any uploaded files
-      await cleanupUploadedFiles(req.files);
+      await biometricConfig.cleanupUploadedFiles(req.files);
       return res.status(409).json({ 
         message: "Biometric data already exists for this user",
         biometricId: existingBiometric._id
@@ -242,7 +112,11 @@ exports.createBiometric = async (req, res) => {
       imageIris: irisImages,
       imageFingerprints: fingerprintImages
     });
-    
+    console.log("biometric userId", req.body.userId);
+    const appointment = await Appointment.findOne({ userId: req.body.userId });
+    appointment.status = "completed"; 
+    await appointment.save(); 
+   
     // Save biometric data
     const savedBiometric = await biometric.save();
     console.log("Biometric entry saved successfully");
@@ -275,7 +149,7 @@ exports.createBiometric = async (req, res) => {
     console.error("Error in createBiometric:", err);
     
     // Clean up any uploaded files in case of error
-    await cleanupUploadedFiles(req.files);
+    await biometricConfig.cleanupUploadedFiles(req.files);
     
     res.status(500).json({
       message: "Error uploading biometric data",
@@ -318,4 +192,7 @@ exports.getBiometricByUserId = async (req, res) => {
       error: err.message
     });
   }
-}; 
+};
+
+// Export middleware for handling biometric uploads
+exports.uploadBiometricImages = biometricConfig.uploadBiometricImages.bind(biometricConfig); 

@@ -73,106 +73,7 @@ module.exports = function(app) {
   });
 
 
-  /**
-   * @swagger
-   * /api/appointments/user:
-   *   get:
-   *     summary: Get user's own appointments
-   *     tags: [Appointments]
-   *     security:
-   *       - bearerAuth: []
-   *     responses:
-   *       200:
-   *         description: User's appointments
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 $ref: '#/components/schemas/Appointment'
-   */
-  app.get(
-    "/api/appointments/user",
-    [authJwt.verifyToken],
-    controller.getUserAppointment
-  );
 
-  
-  
-
-  /**
-   * @swagger
-   * /api/appointments/officer/{officerId}:
-   *   get:
-   *     summary: Get officer's appointments
-   *     tags: [Appointments]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: officerId
-   *         required: true
-   *         schema:
-   *           type: string
-   *     responses:
-   *       200:
-   *         description: List of officer's appointments
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 $ref: '#/components/schemas/Appointment'
-   */
-  app.get(
-    "/api/appointments/officer/:officerId",
-    [
-      authJwt.verifyToken,
-      authJwt.isOfficer
-    ],
-    controller.getOfficerAppointments
-  );
-
-  /**
-   * @swagger
-   * /api/appointments/{id}/status:
-   *   put:
-   *     summary: Update appointment status (officer only)
-   *     tags: [Appointments]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - status
-   *             properties:
-   *               status:
-   *                 type: string
-   *                 enum: [completed, cancelled, missed]
-   *               notes:
-   *                 type: string
-   *     responses:
-   *       200:
-   *         description: Appointment status updated
-   */
-  app.put(
-    "/api/appointments/:id/status",
-    [
-      authJwt.verifyToken,
-      authJwt.isOfficer
-    ],
-    controller.updateStatus
-  );
 
   /**
    * @swagger
@@ -307,79 +208,13 @@ module.exports = function(app) {
     controller.deleteAppointment
   );
 
-  /**
-   * @swagger
-   * /api/appointments/check-and-create/{requestId}:
-   *   post:
-   *     summary: Check availability and create appointment for a CPF request
-   *     tags: [Appointments]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: requestId
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: ID of the CPF request
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - dateTime
-   *             properties:
-   *               dateTime:
-   *                 type: string
-   *                 format: date-time
-   *                 description: Proposed appointment date and time
-   *     responses:
-   *       200:
-   *         description: Appointment created successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 message:
-   *                   type: string
-   *                 appointment:
-   *                   type: object
-   *                   properties:
-   *                     id:
-   *                       type: string
-   *                     date:
-   *                       type: string
-   *                       format: date-time
-   *                     center:
-   *                       type: string
-   *                     status:
-   *                       type: string
-   *                     cpfRequest:
-   *                       type: object
-   *                       properties:
-   *                         id:
-   *                           type: string
-   *                         status:
-   *                           type: string
-   *       400:
-   *         description: Time slot not available or outside working hours
-   *       404:
-   *         description: CPF request or center not found
-   */
-  app.post(
-    "/api/appointments/check-and-create/:requestId",
-    [authJwt.verifyToken, authJwt.isOfficer],
-    controller.checkAndCreateAppointment
-  );
+  
 
  
   app.post(
     "/api/appointments/createScheduleAppointment/:requestId",
     [authJwt.verifyToken, authJwt.isOfficer],
-    controller.create
+    controller.createAppointement
   );
 
   app.put(

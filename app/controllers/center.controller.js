@@ -349,7 +349,7 @@ controller.getCenterStats = async (req, res) => {
 // Get center available slots
 controller.getAvailableDays = async (req, res) => {
   try {
-    console.log("Getting available days for center:", req.params.id);
+    console.log("Getting available days for center:", req.params);
     const { centerId } = req.params;
     const currentMonth = moment().format('YYYY-MM');
     
@@ -368,13 +368,14 @@ controller.getAvailableDays = async (req, res) => {
       // Check if it's Sunday (first character of date is the day of week)
       const date = new Date(day.date);
       const isSunday = date.getDay() === 0;
+     
       
       return {
         date: day.date,
         availableSlots: isSunday ? -1 : (day.capacity - day.reservedSlots)
       };
     });
-    console.log("Available days:", availableDays);
+    // console.log("Available days:", availableDays);
     
     res.status(200).send(availableDays);
   } catch (err) {
