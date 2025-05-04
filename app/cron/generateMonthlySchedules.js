@@ -6,8 +6,10 @@ const createOrUpdateCenterSchedule = require("../utils/centerSchedule");
 
 // Connect to DB (tu peux adapter l’URI à ton projet)
 const connectDB = async () => {
-  await mongoose.connect("mongodb://localhost:27017/fares_db", {});
-  console.log("✅ Connected to MongoDB");
+  await mongoose.connect("mongodb://localhost:27017/identitySecureDB", {
+    
+  });
+dd9243c00108de849ae862e5fff9101a836d4e6d
 };
 
 const scheduleMonthlyUpdate = async () => {
@@ -15,14 +17,12 @@ const scheduleMonthlyUpdate = async () => {
 
   // Cron: Tous les 1ers du mois à minuit
   cron.schedule("0 0 1 * *", async () => {
-    console.log("📅 Début de la mise à jour mensuelle des schedules...");
     const centers = await Center.find();
 
     for (const center of centers) {
       await createOrUpdateCenterSchedule(center._id);
     }
 
-    console.log("✅ Tous les centerSchedule ont été mis à jour pour ce mois.");
   });
 };
 

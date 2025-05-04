@@ -4,7 +4,6 @@ const CenterSchedule = db.centerSchedule;
 
 const createOrUpdateCenterSchedule = async (centerId) => {
   try {
-    console.log(`🔄 Début de la mise à jour du planning pour le centre ID: ${centerId}`);
     const today = moment();
     const currentMonth = today.format("YYYY-MM");
     const startOfMonth = today.clone().startOf("month");
@@ -16,7 +15,6 @@ const createOrUpdateCenterSchedule = async (centerId) => {
       centerId,
       month: { $lt: previousMonth }
     });
-    console.log(`🗑️ ${deleteResult.deletedCount || 0} anciens plannings de mois supprimés`);
 
     // Générer les jours pour le mois en cours
     const days = [];
@@ -55,7 +53,6 @@ const createOrUpdateCenterSchedule = async (centerId) => {
       });
     }
 
-    console.log(`📅 ${days.length} jours générés pour le planning du mois ${currentMonth}`);
 
     // Chercher si un document pour ce mois et ce centre existe déjà
     let centerSchedule = await CenterSchedule.findOne({
@@ -75,7 +72,6 @@ const createOrUpdateCenterSchedule = async (centerId) => {
       }
       centerSchedule.days = days;
       await centerSchedule.save();
-      console.log(`✅ Planning existant mis à jour pour le mois ${currentMonth}`);
     } else {
       // Créer un nouveau document
       centerSchedule = new CenterSchedule({
@@ -85,7 +81,6 @@ const createOrUpdateCenterSchedule = async (centerId) => {
         days
       });
       await centerSchedule.save();
-      console.log(`✅ Nouveau planning créé pour le mois ${currentMonth}`);
     }
 
     return true;

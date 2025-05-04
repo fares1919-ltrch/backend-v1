@@ -314,9 +314,9 @@ module.exports = function(app) {
 
 
 app.get(
-  "/api/cpf-requests/getPending",
+  "/api/cpf-requests/PendingAndApprovedReq",
   [authJwt.verifyToken],
-  controller.PendingReq
+  controller.PendingAndApprovedReq
 );
 
 
@@ -327,53 +327,6 @@ app.get(
   controller.findOne
 );
 
-/**
- * @swagger
- * /api/cpf-requests/{id}:
- *   delete:
- *     summary: Delete CPF request (user can only delete their own pending requests)
- *     tags: [CPF Requests]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: CPF request deleted successfully
- *       403:
- *         description: Not authorized to delete this request
- *       404:
- *         description: CPF request not found
- *       400:
- *         description: Only pending requests can be deleted
- */
-
-/**
- * @swagger
- * /api/cpf-requests/{requestId}/delete:
- *   delete:
- *     summary: Delete a CPF request by ID
- *     tags: [CPF Requests]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: requestId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: CPF request deleted successfully
- *       404:
- *         description: CPF request not found
- *       500:
- *         description: Server error
- */
 app.delete(
   "/api/cpf-requests/:requestId/delete",
   [authJwt.verifyToken, authJwt.isOfficer],

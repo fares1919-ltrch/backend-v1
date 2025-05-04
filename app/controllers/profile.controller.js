@@ -71,7 +71,7 @@ exports.updateProfile = async (req, res) => {
 
     // Handle photo upload if present
     if (req.file) {
-      updates.photo = `/uploads/${req.file.filename}`;
+      updates.photo = `/uploads/profile/${req.file.filename}`;
     }
 
     const user = await User.findByIdAndUpdate(

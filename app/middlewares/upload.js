@@ -4,7 +4,7 @@ const path = require("path");
 // Configure storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "app/middlewares/uploads/");
+    cb(null, "app/middlewares/uploads/profile/");
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
