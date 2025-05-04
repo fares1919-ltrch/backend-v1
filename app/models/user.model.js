@@ -12,6 +12,12 @@ const User = mongoose.model(
           return this.provider === "local" || !this.provider;
         },
       },
+      emailVerified: {
+        type: Boolean,
+        default: false,
+      },
+      verificationToken: String,
+      verificationTokenExpires: Date,
       resetPasswordToken: String,
       resetPasswordExpires: Date,
       provider: {

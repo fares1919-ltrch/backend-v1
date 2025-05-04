@@ -67,7 +67,7 @@ const User = require("../models/user.model");
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 login attempts per windowMs
+  max: 20, // limit each IP to 20 login attempts per windowMs (increased from 5)
   message: {
     message: "Too many login attempts, please try again after 15 minutes",
   },

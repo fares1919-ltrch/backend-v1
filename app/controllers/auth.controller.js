@@ -6,6 +6,7 @@ const RefreshToken = db.refreshToken;
 
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const emailVerificationController = require("./email-verification.controller");
 
 /************************************************
  * USER REGISTRATION
@@ -68,13 +69,23 @@ exports.signup = async (req, res) => {
     // Populate roles for response
     await savedUser.populate("roles", "-__v");
 
+    // Send verification email
+    try {
+      await emailVerificationController.sendVerificationEmail(savedUser);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      // Continue with registration even if email fails
+    }
+
     res.status(200).json({
-      message: "User was registered successfully!",
+      message:
+        "User was registered successfully! Please check your email to verify your account.",
       user: {
         id: savedUser._id,
         username: savedUser.username,
         email: savedUser.email,
         roles: savedUser.roles.map((role) => role.name),
+        emailVerified: savedUser.emailVerified,
       },
     });
   } catch (err) {
@@ -110,6 +121,16 @@ exports.signin = async (req, res) => {
       return res.status(401).json({
         accessToken: null,
         message: "Invalid Password!",
+      });
+    }
+
+    // Check if email is verified for local accounts
+    if (user.provider === "local" && !user.emailVerified) {
+      return res.status(401).json({
+        accessToken: null,
+        message: "Please verify your email address before logging in.",
+        emailVerificationRequired: true,
+        email: user.email,
       });
     }
 
@@ -175,6 +196,7 @@ exports.signin = async (req, res) => {
       accessToken: token,
       refreshToken: refreshToken,
       provider: user.provider || "local",
+      emailVerified: user.emailVerified,
     });
   } catch (err) {
     res

@@ -13,7 +13,7 @@ const swaggerSpec = require("./config/swagger");
 const cookieParser = require("cookie-parser");
 const MongoStore = require("connect-mongo");
 const scheduleMonthlyUpdate = require("./app/cron/generateMonthlySchedules");
-const setupScheduledTasks = require('./app/utils/scheduleTasks');
+const setupScheduledTasks = require("./app/utils/scheduleTasks");
 
 const {
   errorHandler,
@@ -22,8 +22,6 @@ const {
 const config = require("./app/config/config");
 require("./app/config/passport"); // Load Passport config
 require("dotenv").config();
-
-
 
 scheduleMonthlyUpdate(); // lance le cron automatiquement
 
@@ -167,12 +165,12 @@ const Role = db.role;
 db.mongoose
   .connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`, {
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
   })
   .then(() => {
     console.log("Connected to the database!");
     initial();
-    
+
     // Configurer les tâches planifiées après la connexion à la base de données
     setupScheduledTasks();
   })
@@ -200,6 +198,7 @@ require("./app/routes/notification.routes")(app);
 require("./app/routes/center.routes")(app);
 require("./app/routes/stats.routes")(app);
 require("./app/routes/password.routes")(app);
+require("./app/routes/email-verification.routes")(app);
 
 // ===== API DOCUMENTATION =====
 

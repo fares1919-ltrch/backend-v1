@@ -33,7 +33,7 @@ const rateLimit = require("express-rate-limit");
 
 // Create a limiter for password reset requests
 const passwordResetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 70 * 60 * 1000, // 1 hour
   max: 3, // limit each IP to 3 requests per windowMs
   message: {
     message:
@@ -111,6 +111,40 @@ module.exports = function (app) {
    * Also support reset via token in the body for backward compatibility
    */
   app.post("/api/password/reset", controller.resetPassword);
+
+  /**
+   * @swagger
+   * /api/password/verify-code:
+   *   post:
+   *     summary: Verify a password reset code
+   *     tags: [Password]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - email
+   *               - code
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *               code:
+   *                 type: string
+   *                 description: 6-digit verification code
+   *     responses:
+   *       200:
+   *         description: Code verification successful
+   *       400:
+   *         description: Invalid or expired code
+   */
+  app.post(
+    "/api/password/verify-code",
+    passwordResetLimiter,
+    controller.verifyCode
+  );
 
   /**
    * @swagger
