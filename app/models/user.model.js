@@ -20,6 +20,7 @@ const User = mongoose.model(
       verificationTokenExpires: Date,
       resetPasswordToken: String,
       resetPasswordExpires: Date,
+      resetPasswordRawToken: String,
       provider: {
         type: String,
         enum: ["local", "google", "github"],

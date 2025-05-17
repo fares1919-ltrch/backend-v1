@@ -19,17 +19,16 @@ exports.forgotPassword = async (req, res) => {
 
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
-    console.log("Generated reset token:", resetToken);
 
     // Hash the token for storage in the database
     const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
-    console.log("Hashed token for storage:", hashedToken);
 
     user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    user.resetPasswordRawToken = resetToken; // Store unhashed token for code verification
 
     await user.save();
 
@@ -43,14 +42,10 @@ exports.forgotPassword = async (req, res) => {
     const formattedVerificationCode = verificationCode
       .toString()
       .padStart(6, "0");
-    console.log("Generated verification code:", formattedVerificationCode);
 
     // Create reset URL - Updated to use frontend URL
     const clientUrl = process.env.CLIENT_URL || "http://localhost:4200";
-
-    // Important: We send the unhashed token in the URL to the reset-password page
     const resetUrl = `${clientUrl}/auth/reset-password/${resetToken}`;
-    console.log("Reset URL:", resetUrl);
 
     // Email content with both link and verification code
     const mailOptions = {
@@ -117,6 +112,7 @@ exports.resetPassword = async (req, res) => {
     user.password = bcrypt.hashSync(password, 8);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+    user.resetPasswordRawToken = undefined; // Clear unhashed token for security
 
     await user.save();
 
@@ -144,17 +140,13 @@ exports.verifyCode = async (req, res) => {
       resetPasswordExpires: { $gt: Date.now() },
     });
 
-    if (!user || !user.resetPasswordToken) {
+    if (!user || !user.resetPasswordToken || !user.resetPasswordRawToken) {
       return res
         .status(400)
         .json({ message: "Invalid or expired reset request!" });
     }
 
-    // Instead of trying to reverse-engineer the token, we'll use a simpler approach
-    // We'll create a verification code based on user-specific data that we can reproduce
-
     // Create a deterministic seed based on user email and reset token
-    // This ensures the code is tied to both the user and the specific reset request
     const seed = user.email + user.resetPasswordToken.substring(0, 16);
     const seedHash = crypto.createHash("sha256").update(seed).digest("hex");
 
@@ -167,10 +159,12 @@ exports.verifyCode = async (req, res) => {
       return res.status(400).json({ message: "Invalid verification code!" });
     }
 
-    // Return the token for the frontend to use
+    // Return the unhashed token for the frontend to use in resetPassword
     res.status(200).json({
-      message: "Verification successful!",
-      token: user.resetPasswordToken,
+      message:
+        "Verification successful! Use this token to reset your password.",
+      email: user.email,
+      token: user.resetPasswordRawToken, // Return unhashed token
     });
   } catch (err) {
     console.error("Verification code error:", err);
